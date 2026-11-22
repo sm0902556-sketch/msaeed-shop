@@ -88,7 +88,7 @@ footer a{color:var(--pri)}
 <g transform="translate(186,74)"><rect x="0" y="0" width="98" height="110" rx="10" fill="url(#gW)"/><rect x="0" y="0" width="98" height="24" rx="10" fill="#e3e9f6"/><circle cx="18" cy="12" r="5" fill="#f97352"/><rect x="34" y="8" width="32" height="8" rx="4" fill="#9fb0d1"/><circle cx="82" cy="12" r="4" fill="#9fb0d1"/><circle cx="49" cy="67" r="34" fill="#c7d2ea"/><circle cx="49" cy="67" r="27" fill="url(#gG)"/><path d="M28 74q10-9 21 0t21 0" stroke="#e6f0ff" stroke-width="3" fill="none" opacity=".8"/><circle cx="40" cy="57" r="6" fill="#fff" opacity=".55"/></g>
 <!-- microwave on top of counter -->
 <g transform="translate(294,108)"><rect x="-6" y="40" width="108" height="36" rx="4" fill="#f4b183"/><rect x="-6" y="40" width="108" height="6" rx="3" fill="#ffd2b0"/><rect x="0" y="0" width="96" height="40" rx="6" fill="url(#gS)"/><rect x="8" y="7" width="58" height="26" rx="4" fill="#1f2937"/><rect x="12" y="11" width="22" height="18" rx="2" fill="#374151"/><rect x="72" y="8" width="16" height="7" rx="2" fill="#1d4ed8"/><circle cx="76" cy="22" r="2.6" fill="#7b88a8"/><circle cx="84" cy="22" r="2.6" fill="#7b88a8"/><circle cx="76" cy="30" r="2.6" fill="#7b88a8"/><circle cx="84" cy="30" r="2.6" fill="#f97352"/></g>
-</svg><div class="ribbon"><b id="addrLbl">📍 محطة سيلا — أمام محطة القطار</b><span id="mgrLbl">إدارة / حماده توبه</span></div></div></div></header>
+</svg><div class="ribbon"><b id="addrLbl">📍 محطة سيلا — أمام محطة القطار</b><span id="mgrLbl">إدارة / حماده توبه</span><a id="telLbl" href="tel:01104759957" style="display:block;color:#1d4ed8;font-weight:700;text-decoration:none">📞 01104759957</a></div></div></div></header>
 <main id="view"></main>
 <footer>برمجة: M saeed — واتساب <a href="https://wa.me/201123840671">01123840671</a></footer>
 <nav>
@@ -102,10 +102,11 @@ footer a{color:var(--pri)}
 <script>
 {
 const K='msaeed_shop_v1';
-const defSet=()=>({shop:'محل الإخوة للأدوات الكهربائية والمنزلية',owner:'M saeed',phone:'01123840671',addr:'محطة سيلا — أمام محطة القطار',mgr:'حماده توبه',days:3,hour:10,
+const defSet=()=>({shop:'محل الإخوة للأدوات الكهربائية والمنزلية',owner:'M saeed',phone:'01104759957',addr:'محطة سيلا — أمام محطة القطار',mgr:'حماده توبه',days:3,hour:10,
  tpl:'أهلاً أستاذ {الاسم} 👋\nتذكير من {المحل}: قسط {البند} رقم {رقم_القسط} بقيمة {المبلغ} جنيه مستحق يوم {التاريخ}.\nالمتبقي عليك: {المتبقي} جنيه.\nالعنوان: {العنوان}\nللتواصل: {رقمي}\nشكراً لحضرتك 🙏'});
 const def=()=>({settings:defSet(),products:[],moves:[],customers:[],debts:[]});
 let S=load(),tab='home',q='',cf='all',sf='items',cat='';
+if(S.settings.phone==='01123840671'){S.settings.phone='01104759957';try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}}
 if(S.settings.shop==='محل الأدوات المنزلية'){S.settings.shop=defSet().shop;try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}}
 function load(){try{const r=localStorage.getItem(K);if(r){const d=JSON.parse(r);const o=Object.assign(def(),d);o.settings=Object.assign(defSet(),d.settings||{});return o}}catch(e){}return def()}
 function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(e){toast('مشكلة في الحفظ')}syncNative()}
@@ -147,7 +148,7 @@ $('#modal').addEventListener('click',e=>{if(e.target.id==='modal')close()});
 const F=(n,l,v,t,extra)=>'<label for="f_'+n+'">'+l+'</label><input id="f_'+n+'" name="'+n+'" type="'+(t||'text')+'" value="'+esc(v??'')+'" '+(extra||'')+'>';
 
 /* views */
-function render(){$('#shopName').textContent=S.settings.shop;$('#addrLbl').textContent='📍 '+S.settings.addr;$('#mgrLbl').textContent=S.settings.mgr?'إدارة / '+S.settings.mgr:'';$('#todayLbl').textContent=''+new Date().toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+function render(){$('#shopName').textContent=S.settings.shop;$('#addrLbl').textContent='📍 '+S.settings.addr;$('#telLbl').textContent='📞 '+S.settings.phone;$('#telLbl').href='tel:'+S.settings.phone;$('#mgrLbl').textContent=S.settings.mgr?'إدارة / '+S.settings.mgr:'';$('#todayLbl').textContent=''+new Date().toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
  $('#view').innerHTML=({home:vHome,stock:vStock,cust:vCust,set:vSet})[tab]()}
 function dueRow(o){const c=cust(o.d.cid),n=o.x.next;return'<div class="item"><div class="row"><b class="sp">'+esc(c.name)+'</b>'+(o.x.late?'<span class="tag late">متأخر '+o.x.late+'</span>':n.date===today()?'<span class="tag">النهارده</span>':'<span class="tag ok">'+fmtD(n.date)+'</span>')+'</div><div class="mut">'+esc(o.d.item)+' — قسط '+n.n+' : <b>'+money(n.left)+'</b> — المتبقي '+money(o.x.remaining)+'</div><div class="row" style="margin-top:6px"><button class="wa" data-wa="'+o.d.id+'">واتساب للعميل</button><button data-pay="'+o.d.id+'">تسجيل دفع</button><button data-open="'+o.d.cid+'">التفاصيل</button></div></div>'}
@@ -178,7 +179,7 @@ function vCust(){const f=q.trim(),lim=addDays(today(),S.settings.days);
  '<div class="chips">'+[['all','الكل'],['late','متأخرين'],['soon','مستحق قريب'],['open','عليهم فلوس'],['done','خلّصوا']].map(([k,l])=>'<button data-cf="'+k+'" class="'+(cf===k?'on':'')+'">'+l+' ('+cnt(k)+')</button>').join('')+'</div>'+
  '<div class="card"><input id="srch" placeholder="بحث بالاسم أو الرقم..." value="'+esc(q)+'" style="margin-bottom:6px">'+
  (C.length?C.map(o=>'<div class="item row" data-open="'+o.c.id+'" style="cursor:pointer"><div class="sp"><b>'+esc(o.c.name)+'</b><div class="mut">'+esc(o.c.phone)+' · '+o.n+' بند</div></div>'+(o.late?'<span class="tag late">متأخر '+o.late+'</span>':o.n&&o.rem<=0?'<span class="tag ok">خلّص</span>':'')+'<b class="n">'+money(o.rem)+'</b><span class="mut">‹</span></div>').join(''):'<div class="empty">مفيش عملاء هنا</div>')+'</div>'}
-function vSet(){const T=S.settings;return'<form id="setf" class="card"><h2>بيانات المحل والتذكير</h2>'+F('shop','اسم المحل',T.shop)+F('addr','عنوان المحل',T.addr)+F('mgr','الإدارة',T.mgr)+'<div class="g2"><div>'+F('owner','اسم صاحب المحل',T.owner)+'</div><div>'+F('phone','رقم واتساب بتاعك (بيوصلك عليه الملخص)',T.phone,'tel')+'</div><div>'+F('days','اعرض الأقساط قبل ميعادها بكام يوم',T.days,'number','min="0" max="30"')+'</div><div>'+F('hour','ساعة إشعار الموبايل اليومي (0-23)',T.hour,'number','min="0" max="23"')+'</div></div>'+
+function vSet(){const T=S.settings;return'<form id="setf" class="card"><h2>بيانات المحل والتذكير</h2>'+F('shop','اسم المحل',T.shop)+F('addr','عنوان المحل',T.addr)+F('mgr','الإدارة',T.mgr)+'<div class="g2"><div>'+F('owner','اسم صاحب المحل',T.owner)+'</div><div>'+F('phone','تليفون المحل (بيظهر للعملاء ويوصل عليه الملخص)',T.phone,'tel')+'</div><div>'+F('days','اعرض الأقساط قبل ميعادها بكام يوم',T.days,'number','min="0" max="30"')+'</div><div>'+F('hour','ساعة إشعار الموبايل اليومي (0-23)',T.hour,'number','min="0" max="23"')+'</div></div>'+
  '<label for="tpl">نص رسالة العميل</label><textarea id="tpl" name="tpl" rows="7">'+esc(T.tpl)+'</textarea><div class="mut">الكلمات اللي بتتغير تلقائي: {الاسم} {المحل} {البند} {رقم_القسط} {المبلغ} {التاريخ} {المتبقي} {رقمي} {اسمي} {العنوان} {المدير}</div><div class="row" style="margin-top:12px"><button class="p sp" type="submit">حفظ الإعدادات</button></div></form>'+
  '<div class="card"><h2>نسخة احتياطية</h2><p class="mut">كل البيانات متخزنة على الموبايل نفسه. اعمل نسخة احتياطية كل فترة وابعتها لنفسك على واتساب أو احفظها في Drive.</p><div class="row"><button class="p sp" data-act="backup">عمل نسخة احتياطية</button><button class="sp" data-act="restore">استرجاع نسخة</button></div></div>'+
  '<div class="card"><h2>عن البرنامج</h2><p class="mut">برنامج حسابات محل أدوات منزلية — برمجة <b>M saeed</b> — واتساب <a href="https://wa.me/201123840671">01123840671</a></p><button class="d" data-act="wipe">مسح كل البيانات</button></div>'}
@@ -231,7 +232,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button,a,[data-o
  if(ds.cf){cf=ds.cf;render();return}
  if(ds.sf){sf=ds.sf;q='';render();return}
  if(ds.cat!==undefined&&b.closest('.chips')){cat=ds.cat;render();return}
- if(b.tagName==='A'&&b.href.includes('wa.me')){e.preventDefault();openWA(b.href);return}
+ if(b.tagName==='A'&&(b.href.includes('wa.me')||b.href.startsWith('tel:'))){e.preventDefault();openWA(b.href);return}
  if(ds.t){tab=ds.t;q='';render();scrollTo(0,0);return}
  if(ds.wa){const d=S.debts.find(x=>x.id===ds.wa);if(d)openWA(waLink(cust(d.cid).phone,msgFor(d)));return}
  if(ds.pay){fPay(ds.pay);return}
