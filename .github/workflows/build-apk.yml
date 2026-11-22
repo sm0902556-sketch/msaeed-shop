@@ -2,6 +2,8 @@ name: Build APK
 on:
   push:
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,7 +17,14 @@ jobs:
         with:
           gradle-version: '8.9'
       - run: echo "sdk.dir=$ANDROID_HOME" > local.properties && gradle assembleDebug --no-daemon
+      - run: cp app/build/outputs/apk/debug/app-debug.apk MSaeedShop.apk
       - uses: actions/upload-artifact@v4
         with:
           name: MSaeedShop-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: MSaeedShop.apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: برنامج المحل - آخر نسخة
+          files: MSaeedShop.apk
+          make_latest: true
