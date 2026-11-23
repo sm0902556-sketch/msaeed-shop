@@ -18,6 +18,8 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebResourceResponse;
+import androidx.webkit.WebViewAssetLoader;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
@@ -46,18 +48,25 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
+        final WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
+                .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this)).build();
         web.setWebViewClient(new WebViewClient() {
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) {
+                return loader.shouldInterceptRequest(r.getUrl());
+            }
+
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
                 String u = r.getUrl().toString();
-                if (u.startsWith("file:")) return false;
+                if (u.startsWith("https://appassets.androidplatform.net/")) return false;
                 openExternal(u);
                 return true;
             }
         });
         web.addJavascriptInterface(new Bridge(), "Android");
         setContentView(web);
-        web.loadUrl("file:///android_asset/index.html");
+        web.loadUrl("https://appassets.androidplatform.net/assets/index.html");
 
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
