@@ -143,7 +143,7 @@ footer a{color:var(--pri)}
 </g>
 </svg><div class="ribbon"><b id="addrLbl">📍 محطة سيلا — أمام محطة القطار</b><span id="mgrLbl">إدارة / حماده توبه</span><a id="telLbl" href="tel:01104759957" style="display:block;color:#1d4ed8;font-weight:700;text-decoration:none">📞 01104759957</a></div></div></div></header>
 <main id="view"></main>
-<footer>برمجة: M saeed — واتساب <a href="https://wa.me/201123840671">01123840671</a><div id="verLbl"></div></footer>
+<footer><div style="margin-bottom:8px">المبرمج <b>محمد سعيد</b> — 01123840671</div><button class="wa" data-act="dev" style="margin:auto">كلم المبرمج على واتساب</button><div id="verLbl" style="margin-top:6px"></div></footer>
 <nav>
  <button data-t="home" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>الرئيسية</button>
  <button data-t="stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4zM3 7v10l9 4 9-4V7M12 11v10"/></svg>المخزن</button>
@@ -159,7 +159,7 @@ footer a{color:var(--pri)}
 <script>
 {
 const K='msaeed_shop_v1';
-const defSet=()=>({shop:'محل الإخوة للأدوات الكهربائية والمنزلية',owner:'M saeed',phone:'01104759957',addr:'محطة سيلا — أمام محطة القطار',mgr:'حماده توبه',days:3,hour:10,
+const defSet=()=>({shop:'محل الإخوة للأدوات الكهربائية والمنزلية',owner:'محمد سعيد',phone:'01104759957',addr:'محطة سيلا — أمام محطة القطار',mgr:'حماده توبه',days:3,hour:10,
  tpl:'أهلاً أستاذ {الاسم} 👋\nتذكير من {المحل}: قسط {البند} رقم {رقم_القسط} بقيمة {المبلغ} جنيه مستحق يوم {التاريخ}.\nالمتبقي عليك: {المتبقي} جنيه.\nالعنوان: {العنوان}\nللتواصل: {رقمي}\nشكراً لحضرتك 🙏'});
 const def=()=>({settings:defSet(),products:[],moves:[],customers:[],debts:[],log:[]});
 let S=load();
@@ -248,7 +248,7 @@ function vCust(){const f=q.trim(),lim=addDays(today(),S.settings.days);
 function vSet(){const T=S.settings;return usersCard()+'<form id="setf" class="card"><h2>بيانات المحل والتذكير</h2>'+F('who','اسم الجهاز ده (بيظهر في السجل جنب اسم المستخدم)',(()=>{try{return localStorage.getItem('msaeed_who')||''}catch(e){return''}})(),'text','placeholder="مثلاً: موبايل المحل"')+F('shop','اسم المحل',T.shop)+F('addr','عنوان المحل',T.addr)+F('mgr','الإدارة',T.mgr)+'<div class="g2"><div>'+F('owner','اسم صاحب المحل',T.owner)+'</div><div>'+F('phone','تليفون المحل (بيظهر للعملاء ويوصل عليه الملخص)',T.phone,'tel')+'</div><div>'+F('days','اعرض الأقساط قبل ميعادها بكام يوم',T.days,'number','min="0" max="30"')+'</div><div>'+F('hour','ساعة إشعار الموبايل اليومي (0-23)',T.hour,'number','min="0" max="23"')+'</div></div>'+
  '<label for="tpl">نص رسالة العميل</label><textarea id="tpl" name="tpl" rows="7">'+esc(T.tpl)+'</textarea><div class="mut">الكلمات اللي بتتغير تلقائي: {الاسم} {المحل} {البند} {رقم_القسط} {المبلغ} {التاريخ} {المتبقي} {رقمي} {اسمي} {العنوان} {المدير}</div><div class="row" style="margin-top:12px"><button class="p sp" type="submit">حفظ الإعدادات</button></div></form>'+
  gmailCard()+'<div class="card"><h2>نسخة احتياطية يدوي</h2><p class="mut">تقدر كمان تعمل نسخة وتبعتها لنفسك على واتساب، أو ترجّع نسخة من ملف أو نص.</p><div class="row"><button class="p sp" data-act="backup">عمل نسخة احتياطية</button><button class="sp" data-act="restore">استرجاع نسخة</button></div></div>'+
-'<div class="card"><h2>عن البرنامج</h2><button class="wa" data-act="dev" style="width:100%;justify-content:center;margin-bottom:10px">كلم المبرمج على واتساب</button><p class="mut">'+(window.Android&&Android.versionCode?'الإصدار 1.'+Android.versionCode()+' — ':'')+'برنامج حسابات محل أدوات منزلية — برمجة <b>M saeed</b> — واتساب <a href="https://wa.me/201123840671">01123840671</a></p><button class="d" data-act="wipe">مسح كل البيانات</button></div>'}
+'<div class="card"><h2>عن البرنامج</h2><button class="wa" data-act="dev" style="width:100%;justify-content:center;margin-bottom:10px">كلم المبرمج على واتساب</button><p class="mut">'+(window.Android&&Android.versionCode?'الإصدار 1.'+Android.versionCode()+' — ':'')+'برنامج حسابات محل أدوات منزلية — المبرمج <b>محمد سعيد</b> — 01123840671</p><button class="d" data-act="wipe">مسح كل البيانات</button></div>'}
 
 function mailSt(){try{return JSON.parse(Android.mailStatus())}catch(e){return null}}
 function gmailCard(){const m=window.Android&&Android.mailStatus?mailSt():null;
@@ -405,7 +405,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button,a,[data-o
  if(ds.dp){const[did,pid]=ds.dp.split('|');const d=S.debts.find(x=>x.id===did);if(d&&confirm('تمسح الدفعة دي؟')){const pp=d.pays.find(p=>p.id===pid);d.pays=d.pays.filter(p=>p.id!==pid);logA('del','حذف دفعة '+(pp?pp.a:'')+' ج من '+cust(d.cid).name);save();openCust(d.cid);render()}return}
  if(b.id==='sumMe'){openWA(waLink(S.settings.phone,ownerSummary()));return}
  const a=ds.act;if(!a)return;
- if(a==='dev'){openWA(waLink('01123840671','السلام عليكم يا M saeed، أنا من '+S.settings.shop+' ('+(uname||who())+')'+(window.Android&&Android.versionCode?' — إصدار 1.'+Android.versionCode():'')+'\n'));return}
+ if(a==='dev'){openWA(waLink('01123840671','السلام عليكم يا أستاذ محمد، أنا من '+S.settings.shop+' ('+(uname||who())+')'+(window.Android&&Android.versionCode?' — إصدار 1.'+Android.versionCode():'')+'\n'));return}
  if(a==='log'){showLog();return}
  if(a==='addUser'){fAddUser();return}
  if(a==='chPw'){fChPw();return}

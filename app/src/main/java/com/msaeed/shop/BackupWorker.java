@@ -81,7 +81,7 @@ public class BackupWorker extends Worker {
             m.setRecipient(Message.RecipientType.TO, new InternetAddress(email));
             m.setSubject("نسخة احتياطية - محل الإخوة - " + day, "UTF-8");
             MimeBodyPart body = new MimeBodyPart();
-            body.setText("نسخة احتياطية أوتوماتيك من برنامج محل الإخوة.\nلو حبيت ترجّعها: افتح البرنامج > الإعدادات > استرجاع نسخة > واختار الملف المرفق.\n\nبرمجة M saeed - 01123840671", "UTF-8");
+            body.setText("نسخة احتياطية أوتوماتيك من برنامج محل الإخوة.\nلو حبيت ترجّعها: افتح البرنامج > الإعدادات > استرجاع نسخة > واختار الملف المرفق.\n\nالمبرمج محمد سعيد - 01123840671", "UTF-8");
             MimeBodyPart att = new MimeBodyPart();
             att.setDataHandler(new DataHandler(new FileDataSource(data)));
             att.setFileName("elekhwa-backup-" + day + ".json");
