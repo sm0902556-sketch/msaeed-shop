@@ -137,7 +137,7 @@ function msgFor(d){const c=cust(d.cid),x=st(d),n=x.next;const T=S.settings;
 function dueList(days){const t=today(),lim=addDays(t,days);return S.debts.map(d=>({d,x:st(d)})).filter(o=>o.x.next&&o.x.next.date<=lim).sort((a,b)=>a.x.next.date<b.x.next.date?-1:1)}
 function ownerSummary(){const L=dueList(S.settings.days);if(!L.length)return'مفيش أقساط مستحقة النهارده 👍';
  return'📋 ملخص الأقساط ('+fmtD(today())+')\n'+L.map(o=>{const c=cust(o.d.cid);return'• '+c.name+' ('+c.phone+') — '+o.d.item+': '+Math.round(o.x.next.left)+' ج يوم '+fmtD(o.x.next.date)+(o.x.late?' ⚠️ متأخر '+o.x.late+' قسط':'')}).join('\n')}
-function syncNative(){try{if(window.Android&&Android.setDue){const arr=[];S.debts.forEach(d=>{const x=st(d);let cum=0;const paid=x.paid;x.s.forEach(i=>{cum+=i.amount;if(cum>paid+0.001)arr.push({date:i.date,name:cust(d.cid).name,amount:Math.round(i.amount)})})});Android.setDue(JSON.stringify(arr.slice(0,500)),S.settings.hour|0)}}catch(e){}}
+function syncNative(){try{if(window.Android&&Android.saveData)Android.saveData(JSON.stringify(S))}catch(e){}try{if(window.Android&&Android.setDue){const arr=[];S.debts.forEach(d=>{const x=st(d);let cum=0;const paid=x.paid;x.s.forEach(i=>{cum+=i.amount;if(cum>paid+0.001)arr.push({date:i.date,name:cust(d.cid).name,amount:Math.round(i.amount)})})});Android.setDue(JSON.stringify(arr.slice(0,500)),S.settings.hour|0)}}catch(e){}}
 function openWA(url){try{if(window.Android&&Android.openUrl){Android.openUrl(url);return}}catch(e){}location.href=url}
 
 /* modal */
@@ -181,9 +181,21 @@ function vCust(){const f=q.trim(),lim=addDays(today(),S.settings.days);
  (C.length?C.map(o=>'<div class="item row" data-open="'+o.c.id+'" style="cursor:pointer"><div class="sp"><b>'+esc(o.c.name)+'</b><div class="mut">'+esc(o.c.phone)+' · '+o.n+' بند</div></div>'+(o.late?'<span class="tag late">متأخر '+o.late+'</span>':o.n&&o.rem<=0?'<span class="tag ok">خلّص</span>':'')+'<b class="n">'+money(o.rem)+'</b><span class="mut">‹</span></div>').join(''):'<div class="empty">مفيش عملاء هنا</div>')+'</div>'}
 function vSet(){const T=S.settings;return'<form id="setf" class="card"><h2>بيانات المحل والتذكير</h2>'+F('shop','اسم المحل',T.shop)+F('addr','عنوان المحل',T.addr)+F('mgr','الإدارة',T.mgr)+'<div class="g2"><div>'+F('owner','اسم صاحب المحل',T.owner)+'</div><div>'+F('phone','تليفون المحل (بيظهر للعملاء ويوصل عليه الملخص)',T.phone,'tel')+'</div><div>'+F('days','اعرض الأقساط قبل ميعادها بكام يوم',T.days,'number','min="0" max="30"')+'</div><div>'+F('hour','ساعة إشعار الموبايل اليومي (0-23)',T.hour,'number','min="0" max="23"')+'</div></div>'+
  '<label for="tpl">نص رسالة العميل</label><textarea id="tpl" name="tpl" rows="7">'+esc(T.tpl)+'</textarea><div class="mut">الكلمات اللي بتتغير تلقائي: {الاسم} {المحل} {البند} {رقم_القسط} {المبلغ} {التاريخ} {المتبقي} {رقمي} {اسمي} {العنوان} {المدير}</div><div class="row" style="margin-top:12px"><button class="p sp" type="submit">حفظ الإعدادات</button></div></form>'+
- '<div class="card"><h2>نسخة احتياطية</h2><p class="mut">كل البيانات متخزنة على الموبايل نفسه. اعمل نسخة احتياطية كل فترة وابعتها لنفسك على واتساب أو احفظها في Drive.</p><div class="row"><button class="p sp" data-act="backup">عمل نسخة احتياطية</button><button class="sp" data-act="restore">استرجاع نسخة</button></div></div>'+
- '<div class="card"><h2>عن البرنامج</h2><p class="mut">برنامج حسابات محل أدوات منزلية — برمجة <b>M saeed</b> — واتساب <a href="https://wa.me/201123840671">01123840671</a></p><button class="d" data-act="wipe">مسح كل البيانات</button></div>'}
+ gmailCard()+'<div class="card"><h2>نسخة احتياطية يدوي</h2><p class="mut">تقدر كمان تعمل نسخة وتبعتها لنفسك على واتساب، أو ترجّع نسخة من ملف أو نص.</p><div class="row"><button class="p sp" data-act="backup">عمل نسخة احتياطية</button><button class="sp" data-act="restore">استرجاع نسخة</button></div></div>'+
+'<div class="card"><h2>عن البرنامج</h2><p class="mut">برنامج حسابات محل أدوات منزلية — برمجة <b>M saeed</b> — واتساب <a href="https://wa.me/201123840671">01123840671</a></p><button class="d" data-act="wipe">مسح كل البيانات</button></div>'}
 
+function mailSt(){try{return JSON.parse(Android.mailStatus())}catch(e){return null}}
+function gmailCard(){const m=window.Android&&Android.mailStatus?mailSt():null;
+ if(!m)return'<div class="card"><h2>نسخة احتياطية على الجيميل</h2><p class="mut">النسخ الأوتوماتيك على الجيميل شغال في برنامج الموبايل (APK) بس.</p></div>';
+ const last=m.last?new Date(m.last).toLocaleString('ar-EG',{day:'numeric',month:'long',hour:'numeric',minute:'2-digit'}):'لسه متبعتش';
+ return'<form id="gmf" class="card"><h2>نسخة احتياطية أوتوماتيك على الجيميل</h2>'+
+ '<div class="row" style="margin-bottom:4px">'+(m.enabled&&m.hasPass?'<span class="tag ok">شغالة</span>':'<span class="tag late">مش متفعلة</span>')+'<span class="mut">آخر نسخة: '+last+'</span></div>'+(m.err?'<div class="tag late" style="display:block;border-radius:10px;padding:8px;margin:6px 0">'+esc(m.err)+'</div>':'')+
+ F('gm','الجيميل بتاعك',m.email,'email','placeholder="example@gmail.com" required')+
+ '<label for="f_gp">كلمة سر التطبيقات (16 حرف من جوجل)</label><input id="f_gp" name="gp" type="password" autocomplete="off" placeholder="'+(m.hasPass?'متسجلة ✓ — سيبها فاضية لو مش هتغيرها':'xxxx xxxx xxxx xxxx')+'">'+
+ '<p class="mut" style="margin:6px 0">دي مش باسورد الجيميل العادي. اعملها من <a href="https://myaccount.google.com/apppasswords" data-ext="1">صفحة كلمات سر التطبيقات في جوجل</a> (لازم يكون "التحقق بخطوتين" متفعل).</p>'+
+ '<label for="f_ev">كل قد إيه</label><select id="f_ev" name="ev">'+[[1,'كل يوم'],[2,'كل يومين'],[7,'كل أسبوع']].map(([v,l])=>'<option value="'+v+'"'+((m.every||2)==v?' selected':'')+'>'+l+'</option>').join('')+'</select>'+
+ '<label class="row" style="color:inherit;font-size:16px;margin-top:10px"><input type="checkbox" name="en" style="width:24px;min-height:24px"'+(m.enabled||!m.email?' checked':'')+'> تفعيل النسخ الأوتوماتيك</label>'+
+ '<div class="row" style="margin-top:10px"><button class="p sp" type="submit">حفظ</button><button type="button" class="sp" data-act="mailNow">ابعت نسخة دلوقتي</button></div></form>'}
 /* forms */
 function fProd(p){p=p||{};modal(p.id?'تعديل صنف':'صنف جديد',F('name','اسم الصنف',p.name,'text','required')+F('cat','القسم (مثلاً: مطبخ، أجهزة كهربائية)',p.cat)+'<div class="g2"><div>'+F('buy','سعر الشراء',p.buy,'number','step="any"')+'</div><div>'+F('sell','سعر البيع',p.sell,'number','step="any"')+'</div><div>'+F('qty','الكمية الحالية',p.qty??0,'number','step="any"')+'</div><div>'+F('min','تنبيه لما يقل عن',p.min??2,'number')+'</div></div>'+(p.id?'<button type="button" class="d" id="delP" style="margin-top:10px">حذف الصنف</button>':''),fd=>{
  const o={id:p.id||uid(),name:fd.get('name').trim(),cat:fd.get('cat').trim(),buy:num(fd.get('buy')),sell:num(fd.get('sell')),qty:num(fd.get('qty')),min:num(fd.get('min'))};if(!o.name)return false;
@@ -225,14 +237,14 @@ function openCust(cid){const c=cust(cid);const D=S.debts.filter(d=>d.cid===cid);
 function backup(){const txt=JSON.stringify(S);try{if(window.Android&&Android.share){Android.share('نسخة احتياطية - '+S.settings.shop+' - '+today(),txt);return}}catch(e){}
  modal('نسخة احتياطية','<p class="mut">انسخ النص ده واحفظه أو ابعته لنفسك.</p><textarea rows="8" readonly id="bk">'+esc(txt)+'</textarea><button type="button" class="p" id="cp" style="margin-top:8px">نسخ</button>');
  $('#cp').onclick=()=>{navigator.clipboard.writeText(txt).then(()=>toast('اتنسخ'),()=>{$('#bk').select();toast('حدد النص وانسخه')})}}
-function restore(){modal('استرجاع نسخة','<p class="mut">الصق نص النسخة الاحتياطية هنا. البيانات الحالية هتتبدل.</p><textarea name="t" rows="8" required></textarea>',fd=>{try{const d=JSON.parse(fd.get('t'));if(!d.customers||!d.debts)throw 0;S=Object.assign(def(),d);S.settings=Object.assign(defSet(),d.settings||{});save();render();toast('تم الاسترجاع')}catch(e){toast('النص ده مش نسخة صحيحة');return false}},'استرجاع')}
+function restore(){modal('استرجاع نسخة','<p class="mut">اختار ملف النسخة (اللي جالك على الجيميل) أو الصق النص. البيانات الحالية هتتبدل.</p><label for="bkf">ملف النسخة</label><input type="file" id="bkf" accept=".json,.txt,application/json,text/plain"><label for="bkt">أو الصق النص</label><textarea id="bkt" name="t" rows="6" required></textarea>',fd=>{try{const d=JSON.parse(fd.get('t'));if(!d.customers||!d.debts)throw 0;S=Object.assign(def(),d);S.settings=Object.assign(defSet(),d.settings||{});save();render();toast('تم الاسترجاع')}catch(e){toast('النص ده مش نسخة صحيحة');return false}},'استرجاع');$('#bkf').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('#bkt').value=r.result;toast('الملف اتقرا — دوس استرجاع')};r.readAsText(f)}}
 
 /* events */
 document.addEventListener('click',e=>{const b=e.target.closest('button,a,[data-open]');if(!b)return;const ds=b.dataset;
  if(ds.cf){cf=ds.cf;render();return}
  if(ds.sf){sf=ds.sf;q='';render();return}
  if(ds.cat!==undefined&&b.closest('.chips')){cat=ds.cat;render();return}
- if(b.tagName==='A'&&(b.href.includes('wa.me')||b.href.startsWith('tel:'))){e.preventDefault();openWA(b.href);return}
+ if(b.tagName==='A'&&(ds.ext||b.href.includes('wa.me')||b.href.startsWith('tel:'))){e.preventDefault();openWA(b.href);return}
  if(ds.t){tab=ds.t;q='';render();scrollTo(0,0);return}
  if(ds.wa){const d=S.debts.find(x=>x.id===ds.wa);if(d)openWA(waLink(cust(d.cid).phone,msgFor(d)));return}
  if(ds.pay){fPay(ds.pay);return}
@@ -243,10 +255,16 @@ document.addEventListener('click',e=>{const b=e.target.closest('button,a,[data-o
  if(ds.dp){const[did,pid]=ds.dp.split('|');const d=S.debts.find(x=>x.id===did);if(d&&confirm('تمسح الدفعة دي؟')){d.pays=d.pays.filter(p=>p.id!==pid);save();openCust(d.cid);render()}return}
  if(b.id==='sumMe'){openWA(waLink(S.settings.phone,ownerSummary()));return}
  const a=ds.act;if(!a)return;
+ if(a==='mailNow'){const m=mailSt();if(!m||!m.hasPass||!m.email){toast('احفظ الجيميل وكلمة سر التطبيقات الأول');return}syncNative();Android.sendNow();toast('جاري إرسال النسخة... ارجع هنا بعد دقيقة تشوف النتيجة');setTimeout(()=>{if(tab==='set')render()},20000);return}
  if(a==='newProd')fProd();else if(a==='newMove')fMove();else if(a==='sell')fMove('out');else if(a==='buy')fMove('in');else if(a==='newCust')fCust();else if(a==='newDebt')fDebt();else if(a==='backup')backup();else if(a==='restore')restore();
  else if(a==='wipe'&&confirm('متأكد؟ كل البيانات هتتمسح نهائي.')&&confirm('آخر تأكيد: امسح كل حاجة؟')){S=def();save();render()}});
 document.addEventListener('input',e=>{if(e.target.id==='srch'){q=e.target.value;const pos=e.target.selectionStart;render();const s=$('#srch');s.focus();try{s.setSelectionRange(pos,pos)}catch(x){}}});
-document.addEventListener('submit',e=>{if(e.target.id!=='setf')return;e.preventDefault();const fd=new FormData(e.target);Object.assign(S.settings,{shop:fd.get('shop').trim()||'المحل',addr:fd.get('addr').trim(),mgr:fd.get('mgr').trim(),owner:fd.get('owner').trim(),phone:fd.get('phone').trim(),days:Math.max(0,num(fd.get('days'))|0),hour:Math.min(23,Math.max(0,num(fd.get('hour'))|0)),tpl:fd.get('tpl')});save();render();toast('تم حفظ الإعدادات')});
+document.addEventListener('submit',e=>{if(e.target.id==='gmf'){e.preventDefault();const fd=new FormData(e.target);const em=fd.get('gm').trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('اكتب الجيميل صح');return}
+  const pw=(fd.get('gp')||'').replace(/\s/g,'');if(pw&&pw.length!==16){toast('كلمة سر التطبيقات لازم تبقى 16 حرف');return}
+  const m=mailSt()||{};if(!pw&&!m.hasPass){toast('اكتب كلمة سر التطبيقات');return}
+  try{Android.setMail(em,pw,!!fd.get('en'),parseInt(fd.get('ev'))||2);syncNative();toast('تم الحفظ — جرّب "ابعت نسخة دلوقتي"');render()}catch(x){toast('حصلت مشكلة')}return}
+ if(e.target.id!=='setf')return;e.preventDefault();const fd=new FormData(e.target);Object.assign(S.settings,{shop:fd.get('shop').trim()||'المحل',addr:fd.get('addr').trim(),mgr:fd.get('mgr').trim(),owner:fd.get('owner').trim(),phone:fd.get('phone').trim(),days:Math.max(0,num(fd.get('days'))|0),hour:Math.min(23,Math.max(0,num(fd.get('hour'))|0)),tpl:fd.get('tpl')});save();render();toast('تم حفظ الإعدادات')});
 window.addEventListener('popstate',()=>close());
 render();syncNative();
 }
