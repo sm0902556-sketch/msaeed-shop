@@ -228,11 +228,11 @@ const FB={apiKey:"AIzaSyAS35dHxy4_dy45BWr586qqLbR72Q_cbP4",authDomain:"elekhwa-s
 const DOM='@elekhwa-shop.app',COLLS=['products','customers','debts','moves'];
 const u2e=u=>u.trim().toLowerCase()+DOM,e2u=e=>String(e||'').replace(DOM,'');
 const okName=u=>/^[a-z0-9_.-]{3,20}$/.test(u);
-let db=null,auth=null,cur=null,members=null,shadow={},unsubs=[],base={},cloudOn=false,pendingW=false,before=null,setRemote=false;
+let inflight=0,db=null,auth=null,cur=null,members=null,shadow={},unsubs=[],base={},cloudOn=false,pendingW=false,before=null,setRemote=false;
 const clone=o=>JSON.parse(JSON.stringify(o));
 function sharedSet(){return clone(S.settings)}
 function setSync(){const el=$('#syncLbl');if(!el)return;if(!cur){el.hidden=true;return}el.hidden=false;
- el.textContent=!cloudOn?'⏳ بيحمّل البيانات...':!navigator.onLine?'🟠 بدون نت — هيتزامن لما يرجع':pendingW?'🔄 بيرفع التعديلات...':'🟢 متزامن — '+uname}
+ el.textContent=!cloudOn?'⏳ بيحمّل البيانات...':!navigator.onLine?'🟠 بدون نت — هيتزامن لما يرجع':inflight>0?'🔄 بيرفع التعديلات...':'🟢 متزامن — '+uname}
 window.addEventListener('online',setSync);window.addEventListener('offline',setSync);
 function cloudInit(){if(!window.firebase)return false;try{firebase.initializeApp(FB);db=firebase.firestore();try{db.settings({experimentalAutoDetectLongPolling:true,merge:true})}catch(e){}
  db.enablePersistence({synchronizeTabs:true}).catch(()=>{});auth=firebase.auth();auth.onAuthStateChanged(onUser);return true}catch(e){console.error(e);return false}}
@@ -278,8 +278,8 @@ async function cloudSave(){if(!cloudOn||!db||!cur)return;if(saving){again=true;r
    Object.keys(shadow).forEach(k=>{const[cc,id]=k.split('/');if(cc===c&&!ids[id]){delete shadow[k];ops.push(b=>b.delete(db.collection(c).doc(id)))}})});
   const sj=JSON.stringify(sharedSet());if(shadow['meta/settings']!==sj){shadow['meta/settings']=sj;ops.push(b=>b.set(db.doc('meta/settings'),sharedSet()))}
   (S.log||[]).forEach(e=>{if(!shadow['log/'+e.id]){shadow['log/'+e.id]=1;ops.push(b=>b.set(db.collection('log').doc(e.id),clone(e)))}});
-  for(let i=0;i<ops.length;i+=400){const b=db.batch();ops.slice(i,i+400).forEach(f=>f(b));b.commit().catch(e=>{syncErr(e);toast('التعديل متحفظش على السيرفر: '+(e.code||''))})}
-  if(ops.length){pendingW=true;setSync()}}finally{saving=false;if(again){again=false;cloudSave()}}}
+  for(let i=0;i<ops.length;i+=400){const b=db.batch();ops.slice(i,i+400).forEach(f=>f(b));inflight++;b.commit().then(()=>{inflight--;setSync()},e=>{inflight--;syncErr(e);toast('التعديل متحفظش على السيرفر: '+(e.code||''))})}
+  if(ops.length)setSync()}finally{saving=false;if(again){again=false;cloudSave()}}}
 async function addUser(u,pw){const sec=firebase.apps.find(a=>a.name==='sec')||firebase.initializeApp(FB,'sec');const sa=sec.auth();
  const c=await sa.createUserWithEmailAndPassword(u2e(u),pw);await sa.signOut();
  await db.doc('meta/members').update({users:firebase.firestore.FieldValue.arrayUnion(c.user.email)});members=(await membersDoc())||members}
