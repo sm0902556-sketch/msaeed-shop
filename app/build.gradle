@@ -6,8 +6,18 @@ android {
         applicationId "com.msaeed.shop"
         minSdk 21
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode Integer.parseInt(System.getenv("GITHUB_RUN_NUMBER") ?: "1")
+        versionName "1." + (System.getenv("GITHUB_RUN_NUMBER") ?: "0")
+    }
+    signingConfigs {
+        debug {
+            if (file('release.jks').exists()) {
+                storeFile file('release.jks')
+                storePassword 'elekhwa2026'
+                keyAlias 'elekhwa'
+                keyPassword 'elekhwa2026'
+            }
+        }
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
     packaging {

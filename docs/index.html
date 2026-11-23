@@ -201,7 +201,7 @@ function vCust(){const f=q.trim(),lim=addDays(today(),S.settings.days);
 function vSet(){const T=S.settings;return usersCard()+'<form id="setf" class="card"><h2>بيانات المحل والتذكير</h2>'+F('who','اسم الجهاز ده (بيظهر في السجل جنب اسم المستخدم)',(()=>{try{return localStorage.getItem('msaeed_who')||''}catch(e){return''}})(),'text','placeholder="مثلاً: موبايل المحل"')+F('shop','اسم المحل',T.shop)+F('addr','عنوان المحل',T.addr)+F('mgr','الإدارة',T.mgr)+'<div class="g2"><div>'+F('owner','اسم صاحب المحل',T.owner)+'</div><div>'+F('phone','تليفون المحل (بيظهر للعملاء ويوصل عليه الملخص)',T.phone,'tel')+'</div><div>'+F('days','اعرض الأقساط قبل ميعادها بكام يوم',T.days,'number','min="0" max="30"')+'</div><div>'+F('hour','ساعة إشعار الموبايل اليومي (0-23)',T.hour,'number','min="0" max="23"')+'</div></div>'+
  '<label for="tpl">نص رسالة العميل</label><textarea id="tpl" name="tpl" rows="7">'+esc(T.tpl)+'</textarea><div class="mut">الكلمات اللي بتتغير تلقائي: {الاسم} {المحل} {البند} {رقم_القسط} {المبلغ} {التاريخ} {المتبقي} {رقمي} {اسمي} {العنوان} {المدير}</div><div class="row" style="margin-top:12px"><button class="p sp" type="submit">حفظ الإعدادات</button></div></form>'+
  gmailCard()+'<div class="card"><h2>نسخة احتياطية يدوي</h2><p class="mut">تقدر كمان تعمل نسخة وتبعتها لنفسك على واتساب، أو ترجّع نسخة من ملف أو نص.</p><div class="row"><button class="p sp" data-act="backup">عمل نسخة احتياطية</button><button class="sp" data-act="restore">استرجاع نسخة</button></div></div>'+
-'<div class="card"><h2>عن البرنامج</h2><p class="mut">برنامج حسابات محل أدوات منزلية — برمجة <b>M saeed</b> — واتساب <a href="https://wa.me/201123840671">01123840671</a></p><button class="d" data-act="wipe">مسح كل البيانات</button></div>'}
+'<div class="card"><h2>عن البرنامج</h2><p class="mut">'+(window.Android&&Android.versionCode?'الإصدار 1.'+Android.versionCode()+' — ':'')+'برنامج حسابات محل أدوات منزلية — برمجة <b>M saeed</b> — واتساب <a href="https://wa.me/201123840671">01123840671</a></p><button class="d" data-act="wipe">مسح كل البيانات</button></div>'}
 
 function mailSt(){try{return JSON.parse(Android.mailStatus())}catch(e){return null}}
 function gmailCard(){const m=window.Android&&Android.mailStatus?mailSt():null;
@@ -378,6 +378,13 @@ document.addEventListener('submit',e=>{if(e.target.id==='gmf'){e.preventDefault(
  if(e.target.id!=='setf')return;e.preventDefault();const fd=new FormData(e.target);Object.assign(S.settings,{shop:fd.get('shop').trim()||'المحل',addr:fd.get('addr').trim(),mgr:fd.get('mgr').trim(),owner:fd.get('owner').trim(),phone:fd.get('phone').trim(),days:Math.max(0,num(fd.get('days'))|0),hour:Math.min(23,Math.max(0,num(fd.get('hour'))|0)),tpl:fd.get('tpl')});try{localStorage.setItem('msaeed_who',(fd.get('who')||'').trim()||'الموبايل')}catch(x){}logA('set','تعديل إعدادات المحل');save();render();toast('تم حفظ الإعدادات')});
 window.addEventListener('popstate',()=>close());
 render();syncNative();
+const APK='https://github.com/sm0902556-sketch/msaeed-shop/releases/download/latest/MSaeedShop.apk';let lastChk=0;
+window.checkUpd=()=>{try{if(window.Android&&Android.checkUpdate&&Date.now()-lastChk>60000){lastChk=Date.now();Android.checkUpdate()}}catch(e){}};
+window.onUpdate=t=>{try{const v=JSON.parse(t),mine=Android.versionCode();let el=$('#updBar');if(!(v.code>mine)){if(el)el.remove();return}
+ if(!el){el=document.createElement('div');el.id='updBar';el.className='card';el.style.cssText='margin:12px auto 0;max-width:876px;width:calc(100% - 24px);border:2px solid var(--ok);display:flex;gap:10px;align-items:center;flex-wrap:wrap';document.querySelector('main').before(el)}
+ el.innerHTML='<div class="sp"><b>🎉 فيه تحديث جديد للبرنامج (إصدار '+esc(v.name)+')</b>'+(v.notes?'<div class="mut">'+esc(v.notes)+'</div>':'')+'</div><button class="p" id="updGo">تحديث دلوقتي</button>';
+ $('#updGo').onclick=()=>{openWA(APK);toast('افتح الملف بعد ما يخلص تنزيل ودوس تثبيت')}}catch(e){}};
+window.checkUpd();
 if(!cloudInit()){const el=$('#syncLbl');if(el){el.hidden=false;el.textContent='⚪ شغال على الجهاز بس'}}
 $('#syncLbl').onclick=()=>{if(cur)cloudSave()};
 }

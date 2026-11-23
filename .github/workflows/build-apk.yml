@@ -16,6 +16,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Signing key
+        env:
+          KS: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KS" ]; then echo "::error::KEYSTORE_B64 secret is missing"; exit 1; fi
+          echo "$KS" | base64 -d > app/release.jks
       - run: echo "sdk.dir=$ANDROID_HOME" > local.properties && gradle assembleDebug --no-daemon
       - run: cp app/build/outputs/apk/debug/app-debug.apk MSaeedShop.apk
       - uses: actions/upload-artifact@v4
@@ -28,3 +34,14 @@ jobs:
           name: برنامج المحل - آخر نسخة
           files: MSaeedShop.apk
           make_latest: true
+      - name: Version info
+        env:
+          MSG: ${{ github.event.head_commit.message }}
+        run: |
+          NOTE=$(printf '%s' "$MSG" | head -n1)
+          jq -n --arg n "$NOTE" --argjson c "$GITHUB_RUN_NUMBER" '{code:$c,name:("1."+($c|tostring)),notes:$n}' > version.json
+          cat version.json
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          files: version.json

@@ -94,6 +94,12 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        if (web != null) web.evaluateJavascript("window.checkUpd&&window.checkUpd()", null);
+    }
+
+    @Override
     public void onBackPressed() {
         if (web != null && web.canGoBack()) web.goBack(); else super.onBackPressed();
     }
@@ -144,6 +150,33 @@ public class MainActivity extends Activity {
                 }
             } catch (Exception ignored) { }
             return "";
+        }
+
+        @JavascriptInterface
+        public int versionCode() {
+            try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionCode; } catch (Exception e) { return 0; }
+        }
+
+        @JavascriptInterface
+        public void checkUpdate() {
+            new Thread(() -> {
+                try {
+                    java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(
+                            "https://github.com/sm0902556-sketch/msaeed-shop/releases/download/latest/version.json").openConnection();
+                    c.setInstanceFollowRedirects(true);
+                    c.setUseCaches(false);
+                    c.setConnectTimeout(15000);
+                    c.setReadTimeout(15000);
+                    java.io.InputStream in = c.getInputStream();
+                    java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+                    byte[] buf = new byte[4096];
+                    int n;
+                    while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
+                    in.close();
+                    final String js = "window.onUpdate&&window.onUpdate(" + JSONObject.quote(bo.toString("UTF-8")) + ")";
+                    web.post(() -> web.evaluateJavascript(js, null));
+                } catch (Exception ignored) { }
+            }).start();
         }
 
         @JavascriptInterface
