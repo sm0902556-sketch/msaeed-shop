@@ -135,6 +135,18 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String getClipboard() {
+            try {
+                android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                if (cm != null && cm.hasPrimaryClip() && cm.getPrimaryClip().getItemCount() > 0) {
+                    CharSequence t = cm.getPrimaryClip().getItemAt(0).coerceToText(MainActivity.this);
+                    return t == null ? "" : t.toString();
+                }
+            } catch (Exception ignored) { }
+            return "";
+        }
+
+        @JavascriptInterface
         public void sendNow() { BackupWorker.sendNow(MainActivity.this); }
 
         @JavascriptInterface
