@@ -84,6 +84,39 @@ footer{padding:14px 12px 10px;text-align:center}
 .badge .ph{display:block;text-align:right;font-size:14px;color:var(--mut);direction:ltr;unicode-bidi:isolate}
 .badge button{flex:none;min-height:44px;border-radius:99px;padding:8px 14px;background:#25d366;color:#fff;border:0;font-weight:700}
 #verLbl{color:var(--mut);font-size:13px;margin-top:8px}
+.brand{display:none}
+.cols>div{min-width:0}
+@media(min-width:1000px){
+ body{padding-bottom:0;padding-inline-start:240px}
+ nav{top:0;bottom:0;inset-inline-start:0;inset-inline-end:auto;width:240px;border-top:0;border-inline-end:1px solid var(--line);grid-template-columns:1fr;grid-auto-rows:min-content;align-content:start;padding:0 12px 20px;gap:4px}
+ .brand{display:block;padding:22px 8px 18px;margin-bottom:8px;border-bottom:1px solid var(--line)}
+ .brand b{display:block;font-size:17px;line-height:1.4;color:light-dark(#1e3a8a,#c7d6ff)}.brand span{font-size:13px;color:var(--mut)}
+ nav button{flex-direction:row;justify-content:flex-start;gap:12px;font-size:16px;min-height:50px;padding:0 14px;border-radius:12px}
+ nav button.on{background:light-dark(#eef2ff,#1e2a4d)}
+ nav button:hover{background:light-dark(#f3f5fa,#1b2236)}
+ header{padding:24px 32px 0}
+ .hd{max-width:1240px;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:28px}
+ header h1{font-size:38px}
+ main{max-width:1240px;padding:20px 32px}
+ .stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+ .stat{padding:16px 18px}.stat b{font-size:26px}
+ .qa{gap:14px}.qa button{min-height:84px;flex-direction:row;gap:12px;font-size:17px}
+ .cols{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:20px;align-items:start}
+ .cols>div:only-child{grid-column:1/-1}
+ .modal{align-items:center;padding:24px}
+ .sheet{border-radius:18px;max-height:86vh;padding:22px 24px;box-shadow:0 30px 80px #0005}
+ .toast{bottom:24px}
+ button:hover{filter:brightness(.97)}
+ .item[data-open]:hover{background:light-dark(#f6f8fc,#1b2236);border-radius:10px}
+ table{font-size:15px}
+ td,th{padding:9px 8px}
+ footer{padding:20px 32px 28px}
+ body:not(.t-home) header .wrap{display:none}
+ body:not(.t-home) header{padding-bottom:18px}
+ body:not(.t-home) .hd{grid-template-columns:1fr}
+ body:not(.t-home) header h1{font-size:28px}
+ body:not(.t-home) header .tt{padding-bottom:0}
+}
 @media(prefers-reduced-motion:no-preference){.sheet{animation:up .2s ease-out}@keyframes up{from{transform:translateY(40px);opacity:.5}}}
 </style>
 </head>
@@ -152,6 +185,7 @@ footer{padding:14px 12px 10px;text-align:center}
 <main id="view"></main>
 <footer><div class="badge"><div class="av"><span>M</span><span>saeed</span></div><div class="sp"><small>تصميم وبرمجة</small><b>المبرمج محمد سعيد</b><span class="ph">01123840671</span></div><button data-act="dev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px"><path d="M21 11.5a8.4 8.4 0 0 1-12.6 7.3L3 20l1.3-5A8.4 8.4 0 1 1 21 11.5z"/></svg> كلمني</button></div><div id="verLbl"></div></footer>
 <nav>
+ <div class="brand"><b id="navShop"></b><span>برنامج حسابات المحل</span></div>
  <button data-t="home" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>الرئيسية</button>
  <button data-t="stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4zM3 7v10l9 4 9-4V7M12 11v10"/></svg>المخزن</button>
  <button data-t="cust"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6M17 4a4 4 0 0 1 0 8M22 21c0-3-2-5-4-5.5"/></svg>العملاء</button>
@@ -218,10 +252,11 @@ function modal(title,html,onSave,saveTxt){$('#sheet').innerHTML='<div class="row
  $('#modal').classList.add('on');$('#mx').onclick=close;$('#mf').onsubmit=e=>{e.preventDefault();if(onSave&&onSave(new FormData(e.target))!==false){close()}}}
 function close(){$('#modal').classList.remove('on')}
 $('#modal').addEventListener('click',e=>{if(e.target.id==='modal')close()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#modal').classList.contains('on'))close()});
 const F=(n,l,v,t,extra)=>'<label for="f_'+n+'">'+l+'</label><input id="f_'+n+'" name="'+n+'" type="'+(t||'text')+'" value="'+esc(v??'')+'" '+(extra||'')+'>';
 
 /* views */
-function render(){$('#shopName').textContent=S.settings.shop;$('#addrLbl').textContent='📍 '+S.settings.addr;$('#telLbl').textContent='📞 '+S.settings.phone;$('#telLbl').href='tel:'+S.settings.phone;$('#mgrLbl').textContent=S.settings.mgr?'إدارة / '+S.settings.mgr:'';$('#todayLbl').textContent=''+new Date().toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+function render(){document.body.className='t-'+tab;$('#shopName').textContent=S.settings.shop;$('#navShop').textContent=S.settings.shop;$('#addrLbl').textContent='📍 '+S.settings.addr;$('#telLbl').textContent='📞 '+S.settings.phone;$('#telLbl').href='tel:'+S.settings.phone;$('#mgrLbl').textContent=S.settings.mgr?'إدارة / '+S.settings.mgr:'';$('#todayLbl').textContent=''+new Date().toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
  $('#view').innerHTML=({home:vHome,stock:vStock,cust:vCust,set:vSet})[tab]()}
 function dueRow(o){const c=cust(o.d.cid),n=o.x.next;return'<div class="item"><div class="row"><b class="sp">'+esc(c.name)+'</b>'+(o.x.late?'<span class="tag late">متأخر '+o.x.late+'</span>':n.date===today()?'<span class="tag">النهارده</span>':'<span class="tag ok">'+fmtD(n.date)+'</span>')+'</div><div class="mut">'+esc(o.d.item)+' — قسط '+n.n+' : <b>'+money(n.left)+'</b> — المتبقي '+money(o.x.remaining)+'</div><div class="row" style="margin-top:6px"><button class="wa" data-wa="'+o.d.id+'">واتساب للعميل</button><button data-pay="'+o.d.id+'">تسجيل دفع</button><button data-open="'+o.d.cid+'">التفاصيل</button></div></div>'}
@@ -230,8 +265,8 @@ function vHome(){const t=today();const all=S.debts.map(d=>({d,x:st(d)}));const t
  const L=dueList(S.settings.days),low=S.products.filter(p=>p.qty<=(p.min||2));
  return'<div class="qa"><button data-act="sell"><i style="background:#dc2626">↑</i>بيع</button><button data-act="buy"><i style="background:#0f9d58">↓</i>وارد</button><button data-act="newDebt"><i style="background:#1d4ed8">＋</i>تقسيط</button><button data-act="newCust"><i style="background:#f97352">☺</i>عميل</button></div>'+
  '<button data-act="log" style="width:100%;justify-content:center;margin-bottom:12px">📋 سجل التعديلات</button><div class="stats"><div class="stat red"><b>'+lateN+'</b><span>عملاء متأخرين</span></div><div class="stat blue"><b>'+money(tot)+'</b><span>إجمالي المديونيات</span></div><div class="stat"><b>'+money(sales)+'</b><span>مبيعات النهارده</span></div><div class="stat"><b>'+money(coll)+'</b><span>تحصيل النهارده</span></div></div>'+
- '<div class="sec"><span style="color:inherit;font-size:17px;font-weight:700" class="sp">الأقساط المستحقة</span><span>'+L.length+' — خلال '+S.settings.days+' أيام</span></div><div class="card">'+(L.length?'<button class="wa" id="sumMe" style="width:100%;justify-content:center;margin-bottom:6px">ابعتلي ملخص الأقساط على واتساب</button>'+L.map(dueRow).join(''):'<div class="empty">مفيش أقساط مستحقة دلوقتي 👍</div>')+'</div>'+
- (low.length?'<div class="sec">نواقص المخزن <span>'+low.length+' صنف</span></div><div class="card">'+low.map(p=>'<div class="item row"><span class="sp">'+esc(p.name)+'</span><span class="tag late">باقي '+p.qty+'</span><button data-act="buy">وارد</button></div>').join('')+'</div>':'')}
+ '<div class="cols"><div><div class="sec"><span style="color:inherit;font-size:17px;font-weight:700" class="sp">الأقساط المستحقة</span><span>'+L.length+' — خلال '+S.settings.days+' أيام</span></div><div class="card">'+(L.length?'<button class="wa" id="sumMe" style="width:100%;justify-content:center;margin-bottom:6px">ابعتلي ملخص الأقساط على واتساب</button>'+L.map(dueRow).join(''):'<div class="empty">مفيش أقساط مستحقة دلوقتي 👍</div>')+'</div></div>'+
+ (low.length?'<div><div class="sec">نواقص المخزن <span>'+low.length+' صنف</span></div><div class="card">'+low.map(p=>'<div class="item row"><span class="sp">'+esc(p.name)+'</span><span class="tag late">باقي '+p.qty+'</span><button data-act="buy">وارد</button></div>').join('')+'</div></div>':'')+'</div>'}
 function vStock(){const f=q.trim();const cats=[...new Set(S.products.map(p=>p.cat).filter(Boolean))];
  const P=S.products.filter(p=>(!f||p.name.includes(f))&&(!cat||p.cat===cat)).sort((a,b)=>(a.cat||'').localeCompare(b.cat||'')||a.name.localeCompare(b.name));
  const M=S.moves.filter(m=>sf==='moves'||m.type===sf).slice().sort((a,b)=>a.date<b.date?1:-1).slice(0,60);
