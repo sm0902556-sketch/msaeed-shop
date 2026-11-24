@@ -1,0 +1,48 @@
+name: Build Temsah APK
+on:
+  push:
+    paths:
+      - 'temsah/**'
+      - '.github/workflows/build-temsah.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: temsah
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Signing key
+        env:
+          KS: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KS" ]; then echo "::error::KEYSTORE_B64 secret is missing"; exit 1; fi
+          echo "$KS" | base64 -d > app/release.jks
+      - run: echo "sdk.dir=$ANDROID_HOME" > local.properties && gradle assembleDebug --no-daemon
+      - run: cp app/build/outputs/apk/debug/app-debug.apk Temsah.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Temsah-apk
+          path: temsah/Temsah.apk
+      - name: Version info
+        run: |
+          NOTE=$(head -n1 app/release-notes.txt)
+          jq -n --arg n "$NOTE" --argjson c "$GITHUB_RUN_NUMBER" '{code:$c,name:("1."+($c|tostring)),notes:$n}' > temsah-version.json
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: temsah
+          name: برنامج التمساح للملابس - آخر نسخة
+          make_latest: false
+          files: |
+            temsah/Temsah.apk
+            temsah/temsah-version.json
