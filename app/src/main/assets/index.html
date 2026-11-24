@@ -70,6 +70,9 @@ nav button.on{color:var(--pri);font-weight:700}
 .auth h2{margin:0 0 4px;font-size:22px;line-height:1.3}
 .auth .err{color:var(--bad);min-height:22px;font-size:14px;margin-top:8px}
 .sync{display:inline-block;font-size:13px;padding:2px 10px;border-radius:99px;background:#1d4ed81a;margin-top:8px;cursor:pointer}
+.rfbtn{display:inline-flex;align-items:center;gap:4px;font-size:13px;min-height:30px;padding:2px 12px;border-radius:99px;margin-top:8px;margin-inline-start:6px;border:1px solid #1d4ed833;background:#fff;color:#1d4ed8;cursor:pointer;vertical-align:top}
+#ptr{position:fixed;top:-60px;left:50%;width:44px;height:44px;margin-left:-22px;border-radius:50%;background:#fff;box-shadow:0 4px 14px #0003;display:grid;place-items:center;z-index:30;font-size:22px;color:#1d4ed8;transition:top .15s}
+#ptr.spin span{animation:rot .8s linear infinite;display:inline-block}@keyframes rot{to{transform:rotate(360deg)}}
 .toast{position:fixed;bottom:90px;inset-inline:16px;margin:auto;max-width:420px;background:#111827;color:#fff;padding:12px 14px;border-radius:12px;display:none;z-index:10;text-align:center}
 table{width:100%;border-collapse:collapse;font-size:14px}
 td,th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:start}
@@ -121,7 +124,7 @@ footer{padding:14px 12px 10px;text-align:center}
 </style>
 </head>
 <body>
-<header><div class="hd"><div class="tt"><p class="kicker">أهلاً بيك في</p><h1 id="shopName">محل الإخوة للأدوات الكهربائية والمنزلية</h1><small id="todayLbl"></small><span class="sync" id="syncLbl" hidden></span></div><div class="wrap"><svg viewBox="0 0 400 200" role="img" aria-label="غسالة وتلاجة وميكروويف وسخان في المحل">
+<header><div class="hd"><div class="tt"><p class="kicker">أهلاً بيك في</p><h1 id="shopName">محل الإخوة للأدوات الكهربائية والمنزلية</h1><small id="todayLbl"></small><span class="sync" id="syncLbl" hidden></span><button class="rfbtn" id="rfBtn" type="button" aria-label="تحديث">🔄 تحديث</button></div><div class="wrap"><svg viewBox="0 0 400 200" role="img" aria-label="غسالة وتلاجة وميكروويف وسخان في المحل">
 <defs>
 <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf8f3"/><stop offset="1" stop-color="#ece3d6"/></linearGradient>
 <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d8c4a3"/><stop offset="1" stop-color="#bfa47a"/></linearGradient>
@@ -193,6 +196,7 @@ footer{padding:14px 12px 10px;text-align:center}
 </nav>
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <div class="toast" id="toast"></div>
+<div id="ptr"><span>⟳</span></div>
 <div class="auth" id="auth"><div class="box" id="authBox"></div></div>
 <script src="fb/firebase-app-compat.js"></script>
 <script src="fb/firebase-auth-compat.js"></script>
@@ -501,6 +505,14 @@ window.onUpdate=t=>{try{const v=JSON.parse(t),mine=Android.versionCode();let el=
  el.innerHTML='<div class="sp"><b>🎉 فيه تحديث جديد للبرنامج (إصدار '+esc(v.name)+')</b>'+(v.notes?'<div class="mut">'+esc(v.notes)+'</div>':'')+'</div><button class="p" id="updGo">تحديث دلوقتي</button>';
  $('#updGo').onclick=()=>{openWA(APK);toast('افتح الملف بعد ما يخلص تنزيل ودوس تثبيت')}}catch(e){}};
 window.checkUpd();
+function hardRefresh(){const p=$('#ptr');p.style.top='16px';p.classList.add('spin');toast('جاري التحديث...');try{lastChk=0;window.checkUpd()}catch(e){}
+ try{if(typeof cloudSave==='function')cloudSave()}catch(e){}
+ setTimeout(()=>{if(window.Android)location.reload();else location.replace(location.pathname+'?r='+Date.now())},700)}
+$('#rfBtn').onclick=hardRefresh;
+{let y0=null,dy=0;const P=$('#ptr');
+ addEventListener('touchstart',e=>{y0=(scrollY<=0&&!$('#modal').classList.contains('on')&&!$('#auth').classList.contains('on'))?e.touches[0].clientY:null;dy=0},{passive:true});
+ addEventListener('touchmove',e=>{if(y0==null)return;dy=e.touches[0].clientY-y0;if(dy>0&&scrollY<=0){P.style.transition='none';P.style.top=Math.min(dy*0.5,90)-60+'px';P.firstChild.style.transform='rotate('+dy*2+'deg)'}},{passive:true});
+ addEventListener('touchend',()=>{if(y0==null)return;P.style.transition='';if(dy>130)hardRefresh();else P.style.top='-60px';y0=null;dy=0},{passive:true})}
 try{if(window.Android&&Android.versionCode)$('#verLbl').textContent='الإصدار 1.'+Android.versionCode()}catch(e){}
 if(!cloudInit()){const el=$('#syncLbl');if(el){el.hidden=false;el.textContent='⚪ شغال على الجهاز بس'}}
 $('#syncLbl').onclick=()=>{if(cur)cloudSave()};
