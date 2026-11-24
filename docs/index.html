@@ -319,7 +319,9 @@ function showLog(){const L=(S.log||[]).filter(e=>(!lf||e.k===lf)&&(!lq||e.x.incl
 const FB={apiKey:"AIzaSyAS35dHxy4_dy45BWr586qqLbR72Q_cbP4",authDomain:"elekhwa-shop.firebaseapp.com",projectId:"elekhwa-shop",storageBucket:"elekhwa-shop.firebasestorage.app",messagingSenderId:"329491053695",appId:"1:329491053695:web:cdfb29a7c7164ddcd1534a"};
 const DOM='@elekhwa-shop.app',COLLS=['products','customers','debts','moves'];
 const u2e=u=>u.trim().toLowerCase()+DOM,e2u=e=>String(e||'').replace(DOM,'');
-const okName=u=>/^[a-z0-9_.-]{3,20}$/.test(u);
+const okName=u=>/^[a-z0-9_-]{3,20}$/.test(u);
+const nameOf=e=>{const n=members&&members.names||{};for(const k in n)if(n[k]===e)return k;return e2u(e).replace(/\.r[a-z0-9]+$/,'')};
+const emailOf=(m,u)=>(m&&m.names&&m.names[u])||u2e(u);
 let inflight=0,db=null,auth=null,cur=null,members=null,shadow={},unsubs=[],base={},cloudOn=false,pendingW=false,before=null,setRemote=false;
 const clone=o=>JSON.parse(JSON.stringify(o));
 function sharedSet(){return clone(S.settings)}
@@ -336,18 +338,22 @@ async function showLogin(){const m=await membersDoc();
   F('au','اسم المستخدم (إنجليزي بدون مسافات)','','text','autocapitalize="off" autocomplete="username" placeholder="hamada"')+F('ap','الباسورد','','password','autocomplete="new-password"')+F('ap2','اكتب الباسورد تاني','','password')+
   '<button class="p" id="aGo" style="width:100%;justify-content:center;margin-top:14px">إنشاء حساب صاحب المحل</button><div class="err" id="aErr"></div>');
   $('#aGo').onclick=async()=>{const u=$('#f_au').value.trim().toLowerCase(),pw=$('#f_ap').value;if(!okName(u)){$('#aErr').textContent='اسم المستخدم: من 3 لـ 20 حرف إنجليزي أو أرقام';return}if(pw!==$('#f_ap2').value){$('#aErr').textContent='الباسورد مش زي بعضه';return}
-   $('#aGo').disabled=true;try{const c=await auth.createUserWithEmailAndPassword(u2e(u),pw);await db.doc('meta/members').set({owner:c.user.email,users:[c.user.email]});onUser(c.user)}catch(e){$('#aErr').textContent=authErr(e);$('#aGo').disabled=false}};return}
+   $('#aGo').disabled=true;try{const c=await auth.createUserWithEmailAndPassword(u2e(u),pw);await db.doc('meta/members').set({owner:c.user.email,users:[c.user.email],names:{[u]:c.user.email},suspended:[]});onUser(c.user)}catch(e){$('#aErr').textContent=authErr(e);$('#aGo').disabled=false}};return}
  authBox('<h2>تسجيل الدخول</h2>'+(m===undefined?'<p class="mut">لو مفيش نت، الدخول محتاج نت أول مرة بس.</p>':'')+F('au','اسم المستخدم','','text','autocapitalize="off" autocomplete="username"')+F('ap','الباسورد','','password','autocomplete="current-password"')+
   '<button class="p" id="aGo" style="width:100%;justify-content:center;margin-top:14px">دخول</button><div class="err" id="aErr"></div><p class="mut" style="margin-bottom:0">نسيت الباسورد؟ صاحب المحل يقدر يعملك حساب جديد.</p>');
- const go=async()=>{const u=$('#f_au').value.trim().toLowerCase(),pw=$('#f_ap').value;if(!u||!pw)return;$('#aGo').disabled=true;$('#aErr').textContent='';try{await auth.signInWithEmailAndPassword(u2e(u),pw)}catch(e){$('#aErr').textContent=authErr(e);$('#aGo').disabled=false}};
+ const go=async()=>{const u=$('#f_au').value.trim().toLowerCase(),pw=$('#f_ap').value;if(!u||!pw)return;$('#aGo').disabled=true;$('#aErr').textContent='';try{await auth.signInWithEmailAndPassword(emailOf(await membersDoc().catch(()=>null)||m,u),pw)}catch(e){$('#aErr').textContent=authErr(e);$('#aGo').disabled=false}};
  $('#aGo').onclick=go;$('#f_ap').onkeydown=e=>{if(e.key==='Enter')go()}}
-async function onUser(u){cur=u;stopSync();if(!u){uname='';setSync();showLogin();return}uname=e2u(u.email);
+async function onUser(u){cur=u;stopSync();if(!u){uname='';setSync();showLogin();return}
  let m=await membersDoc();if(m===undefined){try{m=(await db.doc('meta/members').get({source:'cache'})).data()}catch(e){m=null}}
+ members=m||members;uname=nameOf(u.email);
+ if(m&&(m.suspended||[]).includes(u.email)){authBox('<h2>الحساب موقوف ⛔</h2><p>الحساب <b>'+esc(uname)+'</b> موقوف من صاحب المحل.</p><p class="mut">كلّم صاحب المحل عشان يفعّله تاني.</p><div class="row"><button class="p sp" id="aRe">جرب تاني</button><button class="sp" id="aOut">خروج</button></div>');
+  $('#aRe').onclick=()=>onUser(auth.currentUser);$('#aOut').onclick=()=>auth.signOut();return}
  if(!m||!(m.users||[]).includes(u.email)){authBox('<h2>الحساب مستني الموافقة</h2><p>الحساب <b>'+esc(uname)+'</b> اتعمل، بس صاحب المحل لسه مضافوش.</p><p class="mut">صاحب المحل يدخل على الإعدادات ← المستخدمين ويضيف الاسم ده.</p><div class="row"><button class="p sp" id="aRe">جرب تاني</button><button class="sp" id="aOut">خروج</button></div>');
   $('#aRe').onclick=()=>onUser(auth.currentUser);$('#aOut').onclick=()=>auth.signOut();return}
  members=m;$('#auth').classList.remove('on');startSync()}
 function stopSync(){unsubs.forEach(f=>{try{f()}catch(e){}});unsubs=[];cloudOn=false;shadow={};base={};setRemote=false}
 function startSync(){before=clone(S);setSync();
+ unsubs.push(db.doc('meta/members').onSnapshot(d=>{if(!d.exists||!cur)return;const m=d.data();members=m;if(!(m.users||[]).includes(cur.email)){toast('الحساب ده اتوقف أو اتغير الباسورد بتاعه');onUser(cur);return}if(tab==='set')render()},()=>{}));
  const apply=(c,snap)=>{const first=!base[c];if(first&&snap.metadata.fromCache&&snap.empty)return;
   if(first){base[c]=1;S[c]=snap.docs.map(d=>d.data());snap.docs.forEach(d=>shadow[c+'/'+d.id]=JSON.stringify(d.data()))}
   else snap.docChanges().forEach(ch=>{const d=ch.doc.data(),id=ch.doc.id,k=c+'/'+id;
@@ -358,7 +364,7 @@ function startSync(){before=clone(S);setSync();
  unsubs.push(db.doc('meta/settings').onSnapshot(d=>{if(d.metadata.fromCache&&!d.exists&&!setRemote)return;setRemote=true;if(d.exists){Object.assign(S.settings,d.data());shadow['meta/settings']=JSON.stringify(d.data())}afterSnap()},e=>syncErr(e)));
  unsubs.push(db.collection('log').orderBy('t','desc').limit(3000).onSnapshot(snap=>{base.log=1;const L=snap.docs.map(d=>d.data()).reverse();L.forEach(e=>shadow['log/'+e.id]=1);
   const loc=(S.log||[]).filter(e=>!shadow['log/'+e.id]);S.log=L.concat(cloudOn?loc:[]).sort((a,b)=>a.t<b.t?-1:1);afterSnap()},e=>syncErr(e)))}
-function syncErr(e){console.error(e);const el=$('#syncLbl');if(el){el.hidden=false;el.textContent='🔴 مشكلة في المزامنة: '+((e&&e.code)||'')}}
+function syncErr(e){console.error(e);if(e&&e.code==='permission-denied'&&cur){onUser(cur);return}const el=$('#syncLbl');if(el){el.hidden=false;el.textContent='🔴 مشكلة في المزامنة: '+((e&&e.code)||'')}}
 function afterSnap(){saveLocal();syncNative();if(!cloudOn&&COLLS.every(c=>base[c])&&base.log&&setRemote){cloudOn=true;firstSync()}setSync();render()}
 function firstSync(){const empty=COLLS.every(c=>!S[c].length),had=COLLS.some(c=>before[c]&&before[c].length);
  if(empty&&had&&members&&cur&&members.owner===cur.email){modal('رفع البيانات للسيرفر','<p>السيرفر لسه فاضي، والجهاز ده عليه بيانات ('+before.products.length+' صنف، '+before.customers.length+' عميل، '+before.debts.length+' تقسيط).</p><p class="mut">ترفعها عشان تظهر على كل الأجهزة؟</p><div class="row"><button type="button" class="p sp" id="upY">ارفعها</button><button type="button" class="sp" id="upN">لا، ابدأ من جديد</button></div>');
@@ -372,16 +378,32 @@ async function cloudSave(){if(!cloudOn||!db||!cur)return;if(saving){again=true;r
   (S.log||[]).forEach(e=>{if(!shadow['log/'+e.id]){shadow['log/'+e.id]=1;ops.push(b=>b.set(db.collection('log').doc(e.id),clone(e)))}});
   for(let i=0;i<ops.length;i+=400){const b=db.batch();ops.slice(i,i+400).forEach(f=>f(b));inflight++;b.commit().then(()=>{inflight--;setSync()},e=>{inflight--;syncErr(e);toast('التعديل متحفظش على السيرفر: '+(e.code||''))})}
   if(ops.length)setSync()}finally{saving=false;if(again){again=false;cloudSave()}}}
-async function addUser(u,pw){const sec=firebase.apps.find(a=>a.name==='sec')||firebase.initializeApp(FB,'sec');const sa=sec.auth();
- const c=await sa.createUserWithEmailAndPassword(u2e(u),pw);await sa.signOut();
- await db.doc('meta/members').update({users:firebase.firestore.FieldValue.arrayUnion(c.user.email)});members=(await membersDoc())||members}
+function secAuth(){return(firebase.apps.find(a=>a.name==='sec')||firebase.initializeApp(FB,'sec')).auth()}
+async function mkAccount(u,pw,fresh){const sa=secAuth();let email=fresh?u+'.r'+Date.now().toString(36)+DOM:u2e(u),c;
+ try{c=await sa.createUserWithEmailAndPassword(email,pw)}catch(e){if(e.code!=='auth/email-already-in-use'||fresh)throw e;email=u+'.r'+Date.now().toString(36)+DOM;c=await sa.createUserWithEmailAndPassword(email,pw)}
+ await sa.signOut();return c.user.email}
+async function membersEdit(fn){const ref=db.doc('meta/members');const m=(await ref.get({source:'server'})).data();const n={users:[...(m.users||[])],suspended:[...(m.suspended||[])],names:{...(m.names||{})}};
+ (m.users||[]).concat(m.suspended||[]).forEach(e=>{if(!Object.values(n.names).includes(e))n.names[e2u(e).replace(/\.r[a-z0-9]+$/,'')]=e});
+ fn(n);await ref.update(n);members={...m,...n}}
+async function addUser(u,pw){const m=await membersDoc();if(m&&m.names&&m.names[u])throw{code:'auth/email-already-in-use'};
+ const email=await mkAccount(u,pw,false);await membersEdit(n=>{n.users.push(email);n.names[u]=email})}
+async function resetPw(u,pw){const old=emailOf(members,u);const email=await mkAccount(u,pw,true);
+ await membersEdit(n=>{const wasSusp=n.suspended.includes(old);n.users=n.users.filter(x=>x!==old);n.suspended=n.suspended.filter(x=>x!==old);(wasSusp?n.suspended:n.users).push(email);n.names[u]=email})}
 function usersCard(){if(!cur||!members)return'';const own=members.owner===cur.email;
+ const all=(members.users||[]).map(e=>[e,0]).concat((members.suspended||[]).map(e=>[e,1]));
  return'<div class="card"><h2>المستخدمين والحساب</h2><p class="mut" style="margin-top:0">انت داخل باسم <b>'+esc(uname)+'</b>'+(own?' (صاحب المحل)':'')+'</p>'+
- (members.users||[]).map(e=>'<div class="item row"><span class="sp">👤 '+esc(e2u(e))+(e===members.owner?' <span class="tag">صاحب المحل</span>':'')+'</span>'+(own&&e!==members.owner?'<button class="d" data-rmu="'+esc(e)+'">إلغاء</button>':'')+'</div>').join('')+
+ all.map(([e,sus])=>{const n=nameOf(e),me=e===members.owner;return'<div class="item"><div class="row"><span class="sp" style="font-size:17px">👤 <b>'+esc(n)+'</b> '+(me?'<span class="tag">صاحب المحل</span>':sus?'<span class="tag late">موقوف</span>':'<span class="tag ok">شغال</span>')+'</span></div>'+
+  (own&&!me?'<div class="row" style="margin-top:6px"><button data-upw="'+esc(n)+'">🔑 تغيير الباسورد</button>'+(sus?'<button class="p" data-uon="'+esc(n)+'">✅ تفعيل</button>':'<button data-uoff="'+esc(n)+'">⛔ إيقاف</button>')+'<button class="d" data-udel="'+esc(n)+'">🗑 حذف</button></div>':'')+'</div>'}).join('')+
  (own?'<div class="row" style="margin-top:10px"><button class="p sp" data-act="addUser">+ مستخدم جديد</button></div>':'')+
  '<div class="row" style="margin-top:10px"><button class="sp" data-act="chPw">تغيير الباسورد بتاعي</button><button class="d sp" data-act="logout">تسجيل خروج</button></div></div>'}
+function fUserPw(u){modal('باسورد جديد لـ '+u,F('np2','الباسورد الجديد (6 على الأقل)','','text','autocomplete="off"')+'<p class="mut">بعد الحفظ، <b>'+esc(u)+'</b> هيخرج من البرنامج على كل الأجهزة، ويدخل بنفس اسمه والباسورد الجديد.</p><div id="upErr" style="color:var(--bad)"></div>',fd=>{
+ const pw=fd.get('np2');if(pw.length<6){$('#upErr').textContent='الباسورد 6 على الأقل';return false}const btn=$('#mf button[type=submit]');btn.disabled=true;
+ resetPw(u,pw).then(()=>{logA('set','تغيير باسورد المستخدم: '+u);save();close();render();toast('اتغير باسورد '+u)}).catch(e=>{$('#upErr').textContent=authErr(e);btn.disabled=false});return false},'حفظ الباسورد')}
+function userAct(kind,u){const e=emailOf(members,u);const msg={off:'توقف '+u+'؟ هيخرج من البرنامج على طول.',on:'تفعّل '+u+' تاني؟',del:'تحذف '+u+' نهائي؟'}[kind];if(!confirm(msg))return;
+ membersEdit(n=>{n.users=n.users.filter(x=>x!==e);n.suspended=n.suspended.filter(x=>x!==e);if(kind==='off')n.suspended.push(e);if(kind==='on')n.users.push(e);if(kind==='del')delete n.names[u]})
+ .then(()=>{logA('set',{off:'إيقاف المستخدم: ',on:'تفعيل المستخدم: ',del:'حذف المستخدم: '}[kind]+u);save();render();toast('تم')}).catch(x=>toast('مشكلة: '+(x.code||x.message||'')))}
 function fAddUser(){modal('مستخدم جديد',F('nu','اسم المستخدم (إنجليزي بدون مسافات)','','text','autocapitalize="off" placeholder="worker1"')+F('np','الباسورد (6 على الأقل)','','text')+'<p class="mut">اكتب الاسم والباسورد وابعتهم للشخص ده. هو يقدر يغير الباسورد بعد ما يدخل.</p><div class="err" id="nuErr" style="color:var(--bad)"></div>',fd=>{
- const u=fd.get('nu').trim().toLowerCase(),pw=fd.get('np');if(!okName(u)){$('#nuErr').textContent='الاسم من 3 لـ 20 حرف إنجليزي أو أرقام';return false}if(pw.length<6){$('#nuErr').textContent='الباسورد 6 على الأقل';return false}
+ const u=fd.get('nu').trim().toLowerCase(),pw=fd.get('np');if(!okName(u)){$('#nuErr').textContent='الاسم من 3 لـ 20 حرف إنجليزي أو أرقام (من غير نقط أو مسافات)';return false}if(pw.length<6){$('#nuErr').textContent='الباسورد 6 على الأقل';return false}
  const btn=$('#mf button[type=submit]');btn.disabled=true;addUser(u,pw).then(()=>{logA('set','إضافة مستخدم: '+u);save();close();render();toast('اتضاف '+u)}).catch(e=>{$('#nuErr').textContent=authErr(e);btn.disabled=false});return false},'إضافة')}
 function fChPw(){modal('تغيير الباسورد',F('op','الباسورد الحالي','','password')+F('np1','الباسورد الجديد','','password')+'<div id="pwErr" style="color:var(--bad)"></div>',fd=>{const op=fd.get('op'),np=fd.get('np1');if(np.length<6){$('#pwErr').textContent='الباسورد 6 على الأقل';return false}
  const btn=$('#mf button[type=submit]');btn.disabled=true;const cred=firebase.auth.EmailAuthProvider.credential(cur.email,op);
@@ -432,6 +454,10 @@ function restore(){modal('استرجاع نسخة','<p class="mut">اختار م
 /* events */
 document.addEventListener('click',e=>{const b=e.target.closest('button,a,[data-open]');if(!b)return;const ds=b.dataset;
  if(ds.lf!==undefined&&b.closest('.chips')){lf=ds.lf;showLog();return}
+ if(ds.upw){fUserPw(ds.upw);return}
+ if(ds.uoff){userAct('off',ds.uoff);return}
+ if(ds.uon){userAct('on',ds.uon);return}
+ if(ds.udel){userAct('del',ds.udel);return}
  if(ds.rmu){if(confirm('تلغي دخول '+e2u(ds.rmu)+'؟')){db.doc('meta/members').update({users:firebase.firestore.FieldValue.arrayRemove(ds.rmu)}).then(async()=>{members=(await membersDoc())||members;logA('set','إلغاء مستخدم: '+e2u(ds.rmu));save();render()}).catch(e=>toast('مشكلة: '+(e.code||'')))}return}
  if(ds.cf){cf=ds.cf;render();return}
  if(ds.sf){sf=ds.sf;q='';render();return}
