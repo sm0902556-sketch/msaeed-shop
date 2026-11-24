@@ -1,9 +1,8 @@
 name: Build APK
 on:
   push:
-    paths-ignore:
-      - 'desktop/**'
-      - '.github/workflows/build-exe.yml'
+    paths:
+      - 'app/**'
   workflow_dispatch:
 permissions:
   contents: write
@@ -38,10 +37,8 @@ jobs:
           files: MSaeedShop.apk
           make_latest: true
       - name: Version info
-        env:
-          MSG: ${{ github.event.head_commit.message }}
         run: |
-          NOTE=$(printf '%s' "$MSG" | head -n1)
+          NOTE=$(head -n1 app/release-notes.txt)
           jq -n --arg n "$NOTE" --argjson c "$GITHUB_RUN_NUMBER" '{code:$c,name:("1."+($c|tostring)),notes:$n}' > version.json
           cat version.json
       - uses: softprops/action-gh-release@v2
