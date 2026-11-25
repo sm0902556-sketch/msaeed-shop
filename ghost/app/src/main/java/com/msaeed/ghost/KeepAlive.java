@@ -23,7 +23,11 @@ public class KeepAlive extends Service {
     private WifiManager.WifiLock wifi;
     private static volatile boolean running;
 
+    private static final java.util.concurrent.atomic.AtomicInteger holds = new java.util.concurrent.atomic.AtomicInteger();
+
+    // كل start لازم يقابله stop؛ الخدمة بتقف لما مفيش أي شغل مستني
     static void start(Context c) {
+        holds.incrementAndGet();
         try {
             Intent i = new Intent(c, KeepAlive.class);
             if (Build.VERSION.SDK_INT >= 26) c.startForegroundService(i); else c.startService(i);
@@ -31,7 +35,23 @@ public class KeepAlive extends Service {
     }
 
     static void stop(Context c) {
+        if (holds.decrementAndGet() > 0) return;
+        holds.set(0);
         try { c.stopService(new Intent(c, KeepAlive.class)); } catch (Exception e) { }
+    }
+
+    // إشعار عادي لما شغل الخلفية يخلص
+    static void done(Context c, String title, String text) {
+        try {
+            NotificationManager nm = (NotificationManager) c.getSystemService(NOTIFICATION_SERVICE);
+            if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel("done") == null)
+                nm.createNotificationChannel(new NotificationChannel("done", "نتايج الفحص", NotificationManager.IMPORTANCE_DEFAULT));
+            PendingIntent pi = PendingIntent.getActivity(c, 1, new Intent(c, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            Notification.Builder b = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(c, "done") : new Notification.Builder(c);
+            nm.notify(8, b.setSmallIcon(android.R.drawable.stat_sys_download_done).setContentTitle(title).setContentText(text)
+                    .setAutoCancel(true).setContentIntent(pi).build());
+        } catch (Exception e) { }
     }
 
     static void text(Context c, String t) {
@@ -63,7 +83,7 @@ public class KeepAlive extends Service {
         try {
             if (wake == null) {
                 wake = ((PowerManager) getSystemService(POWER_SERVICE)).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "msaeed:work");
-                wake.acquire(15 * 60 * 1000L);
+                wake.acquire(30 * 60 * 1000L);
             }
             if (wifi == null) {
                 wifi = ((WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE)).createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "msaeed:wifi");

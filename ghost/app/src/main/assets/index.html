@@ -310,9 +310,10 @@ async function rebootAll(){const aps=(LAST&&LAST.aps)||[];if(!aps.length)return;
   info.innerHTML=(okN===aps.length?'✅ ':'⚠️ ')+'أمر الريستارت وصل لـ '+okN+' من '+aps.length+' أكسس، وهيعملوا ريستارت مع بعض في نفس اللحظة.';
   for(const o of res.filter(o=>o.r.error))add('bad','⛔ <b class="ltr">'+esc(o.a.ip)+'</b>: '+esc(arE(o.r.error)));
   const execAt=t0+W*1000,checkAt=execAt+60000,cd=add('info','');   // الفحص بعد 60 ثانية من الريستارت نفسه
+  const bg=scheduleCheck(checkAt);
   const tick=()=>{if(!document.body.contains(cd))return;const now=Date.now();
-    if(now>=checkAt){cd.innerHTML='🔍 بعمل فحص تاني عشان أتأكد...';doScan(true);return}
-    cd.innerHTML=now<execAt?'⏳ الأكسسات هتعمل ريستارت بعد '+Math.ceil((execAt-now)/1000)+' ثانية، وبعدها بـ 60 ثانية هعمل فحص لوحدي.'
+    if(now>=checkAt){cd.innerHTML='🔍 بعمل فحص تاني عشان أتأكد'+(bg?' (شغال في الخلفية، والنتيجة هتظهر لوحدها)':'')+'...';if(!bg)doScan(true);return}
+    cd.innerHTML=now<execAt?'⏳ الأكسسات هتعمل ريستارت بعد '+Math.ceil((execAt-now)/1000)+' ثانية، وبعدها بـ 60 ثانية هعمل فحص لوحدي'+(bg?' — حتى لو خرجت من البرنامج، وهيجيلك إشعار لما يخلص.':'.')
       :'⏳ الأكسسات بتعمل ريستارت دلوقتي — هعمل فحص بعد '+Math.ceil((checkAt-now)/1000)+' ثانية، وهقولك مين عمل ريستارت ومين لأ.';setTimeout(tick,1000)};tick();
   btn.textContent='🔁 اتبعت الريستارت لكل الرينج';}
 function cinfo(x){const a=[];if(x.cip)a.push('IP: <b class="ltr">'+esc(x.cip)+'</b>');if(x.cuser)a.push('كارت: <b class="ltr">'+esc(x.cuser)+'</b>');if(x.cname)a.push('<span class="ltr">'+esc(x.cname)+'</span>');return a.join(' — ')}
@@ -326,6 +327,11 @@ function apProblems(a,ghostN){const p=[];
   return p}
 function arE(m){m=String(m||'');if(/connection abort|Connection reset|Broken pipe|Network is unreachable/i.test(m))return 'الاتصال اتقطع — غالباً أكسس قبله في السلك، أو الأكسس اللي الفون متوصل عليه، عمل ريستارت قبل ما الأمر يوصل';
   if(/timeout|timed out/i.test(m))return 'الأكسس مارجّعش رد في الوقت';if(/refused/i.test(m))return 'الـ SSH مقفول على الأكسس';return m}
+// الفحص بعد الريستارت: على الفون بيتعمل من الخلفية (الجافا) عشان يحصل حتى لو خرجت من البرنامج
+function scheduleCheck(checkAt){if(NATIVE&&Android.scheduleScan){try{localStorage.setItem('bgRanges',JSON.stringify(LAST.ranges));Android.scheduleScan(JSON.stringify(LAST.ranges),checkAt);return true}catch(e){}}return false}
+window.__bgScan=r=>{try{Android.takeBgScan()}catch(e){}let j;try{j=JSON.parse(r)}catch(e){return}if(!j||j.error){if(j)toast(j.error);return}
+  try{j.ranges=JSON.parse(localStorage.getItem('bgRanges')||'[]')}catch(e){j.ranges=[]}j.mode='prob';LAST=j;
+  document.querySelector('nav button[data-t=scan]').click();renderScan();const c=$('healthCard');if(c)c.scrollIntoView({block:'start'});toast('✅ الفحص بعد الريستارت خلص')};
 function getFix(){try{return JSON.parse(localStorage.getItem('fixlog')||'{}')}catch(e){return {}}}
 function logFix(ip,act){if(act==='kick')return;const f=getFix();f[ip]={act,t:Date.now()};try{localStorage.setItem('fixlog',JSON.stringify(f))}catch(e){}}
 const PLAN={reboot:'ريستارت للأكسس (هيقف حوالي دقيقة ويرجع)',wifi:'إعادة تشغيل الواي فاي (العملاء هيفصلوا ثواني ويرجعوا لوحدهم)',kick:'فصل العملاء المعلّقين من الأكسس ده بس'};
@@ -365,8 +371,9 @@ async function fixAll(){const list=(LAST._bad||[]).filter(x=>x.plan);if(!list.le
     for(const {x,r} of res){if(r.error)add('bad','⛔ <b class="ltr">'+esc(x.a.ip)+'</b>: '+esc(arE(r.error)));else{mark(x.a.ip);add('ok','✅ <b class="ltr">'+esc(x.a.ip)+'</b>: '+esc(PLAN[x.plan]))}}
     // 3) فحص تاني أوتوماتيك عشان نتأكد
     const execAt=t0+W*1000,checkAt=execAt+60000,cd=add('info','');   // الفحص بعد 60 ثانية من التنفيذ نفسه
+    const bg=scheduleCheck(checkAt);
     const tick=()=>{if(!document.body.contains(cd))return;const now=Date.now();
-      if(now>=checkAt){cd.innerHTML='🔍 بعمل فحص تاني عشان أتأكد...';doScan(true);return}
+      if(now>=checkAt){cd.innerHTML='🔍 بعمل فحص تاني عشان أتأكد'+(bg?' (شغال في الخلفية، والنتيجة هتظهر لوحدها)':'')+'...';if(!bg)doScan(true);return}
       cd.innerHTML=now<execAt?'⏳ الحل هيتنفّذ على الأكسسات بعد '+Math.ceil((execAt-now)/1000)+' ثانية، وبعدها بـ 60 ثانية هعمل فحص لوحدي.'
         :'⏳ الحل بيتنفّذ دلوقتي — هعمل فحص بعد '+Math.ceil((checkAt-now)/1000)+' ثانية عشان أتأكد إن الأجهزة رجعت والمشاكل اتحلت.';setTimeout(tick,1000)};tick();}
   btn.disabled=false;btn.textContent='🛠️ اتبعت الحل لكل الأجهزة';}
@@ -516,7 +523,7 @@ async function doRefresh(){
   addEventListener('touchend',()=>{const go=py!==null&&pd>100;py=null;pd=0;PI.style.transform='translateY(-60px)';PI.style.opacity=0;if(go)doRefresh()});
 })();
 async function init(){
-  if(NATIVE){document.querySelectorAll('.pcOnly').forEach(e=>e.remove());try{$('curVer').textContent=Android.appVersion()}catch(e){}showJustUpdated()}
+  if(NATIVE){document.querySelectorAll('.pcOnly').forEach(e=>e.remove());try{$('curVer').textContent=Android.appVersion()}catch(e){}showJustUpdated();setTimeout(()=>{try{const p=Android.takeBgScan&&Android.takeBgScan();if(p)window.__bgScan(p)}catch(e){}},800)}
   else{try{const v=await api('version');$('curVer').textContent=v.name}catch(e){}}
   $('verTxt').textContent='إصدار '+$('curVer').textContent+' —';
   setTimeout(()=>checkUpd(false),2500);try{await loadCfg();$('app').classList.remove('hide');$('pinBox').classList.add('hide')}catch(e){}}

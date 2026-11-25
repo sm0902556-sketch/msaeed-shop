@@ -35,13 +35,14 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     // زوّد الرقم ده (وفي ghost/engine-version.txt) لما تغيّر في كود الجافا
-    static final int ENGINE = 11;
+    static final int ENGINE = 12;
     static final String UPD = "https://github.com/sm0902556-sketch/msaeed-shop/releases/download/ghost-latest/";
 
     private WebView web;
     private Engine engine;
     private SharedPreferences prefs;
     private final ExecutorService pool = Executors.newCachedThreadPool();
+    private static volatile String bgScan = null;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -152,6 +153,38 @@ public class MainActivity extends Activity {
             try { return new JSONObject().put("name", prefs.getString("webName", "")).put("notes", prefs.getString("webNotes", "")).toString(); }
             catch (Exception e) { return ""; }
         }
+
+        // فحص بعد الريستارت بيتعمل من الجافا عشان يحصل حتى لو البرنامج في الخلفية
+        @JavascriptInterface
+        public void scheduleScan(final String rangesJson, final double atMillis) {
+            KeepAlive.start(MainActivity.this);
+            pool.submit(() -> {
+                try {
+                    long wait = (long) atMillis - System.currentTimeMillis();
+                    if (wait > 0) Thread.sleep(wait);
+                    KeepAlive.text(MainActivity.this, "بعمل فحص بعد الريستارت...");
+                    String r = null;
+                    for (int i = 0; i < 12; i++) { // لو فيه فحص تاني شغال، استنى
+                        r = engine.handle("scan", "{\"ranges\":" + rangesJson + "}");
+                        if (!r.contains("فيه عملية شغالة")) break;
+                        Thread.sleep(10000);
+                    }
+                    bgScan = r;
+                    final String js = "window.__bgScan&&window.__bgScan(" + JSONObject.quote(r) + ")";
+                    runOnUiThread(() -> web.evaluateJavascript(js, null));
+                    String msg = "افتح البرنامج تشوف النتيجة";
+                    try {
+                        JSONObject j = new JSONObject(r);
+                        msg = j.optInt("okCount") + " أكسس رد" + (j.optJSONArray("failed") != null && j.optJSONArray("failed").length() > 0 ? " و" + j.optJSONArray("failed").length() + " لسه مارجعوش" : "") + " — افتح البرنامج تشوف النتيجة";
+                    } catch (Exception e) { }
+                    KeepAlive.done(MainActivity.this, "الفحص بعد الريستارت خلص", msg);
+                } catch (Exception e) {
+                } finally { KeepAlive.stop(MainActivity.this); }
+            });
+        }
+
+        @JavascriptInterface
+        public String takeBgScan() { String r = bgScan; bgScan = null; return r == null ? "" : r; }
 
         @JavascriptInterface
         public void openLink(String u) { if (u != null && u.startsWith("https://")) openUrl(u); }
