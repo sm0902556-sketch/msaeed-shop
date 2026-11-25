@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#14110a">
 <script>/* الثيم قبل ما الصفحة تترسم */
 const THEMES={gold:["دهبي","#e0b84c","#f5d77e","#8a6610"],blue:["أزرق","#4c9be0","#8cc4f5","#1f5f9e"],green:["أخضر","#4cc27a","#8ee6ad","#1d7a45"],purple:["بنفسجي","#a77ce0","#cfb2f5","#6a3fa8"],red:["أحمر","#e0605c","#f59c98","#a8302c"],teal:["فيروزي","#3cc8c0","#8ee8e2","#157a74"]};
-function applyTheme(){let t="gold",m="dark";try{t=localStorage.getItem("theme")||t;m=localStorage.getItem("mode")||m}catch(e){}const T=THEMES[t]||THEMES.gold,r=document.documentElement;r.dataset.mode=m;r.style.setProperty("--gold",T[1]);r.style.setProperty("--gold2",m==="light"?T[3]:T[2]);const mc=document.querySelector("meta[name=theme-color]");if(mc)mc.content=m==="light"?"#ffffff":"#14110a"}
+function applyTheme(){let t="gold",m="dark";try{t=localStorage.getItem("theme")||t;m=localStorage.getItem("mode")||m}catch(e){}const T=THEMES[t]||THEMES.gold,r=document.documentElement;r.dataset.mode=m;let ui="classic";try{ui=localStorage.getItem("ui")||ui}catch(e){}r.dataset.ui=ui;r.style.setProperty("--gold",T[1]);r.style.setProperty("--gold2",m==="light"?T[3]:T[2]);const mc=document.querySelector("meta[name=theme-color]");if(mc)mc.content=m==="light"?"#ffffff":"#14110a"}
 applyTheme();
 </script>
 <title>فحص عميل معلق - المبرمج محمد سعيد</title>
@@ -75,6 +75,38 @@ html[data-mode=light] .btn.big.red{background:var(--bad)}
 .thm{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:20px;padding:7px 12px;cursor:pointer;font-size:13px;color:var(--txt);margin:3px}
 .thm i{width:16px;height:16px;border-radius:50%;display:inline-block}
 .thm.on{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold) inset}
+
+/* ===== شكل الواجهة ===== */
+/* زجاجي */
+html[data-ui=glass] body{background:radial-gradient(circle at 15% 0%,color-mix(in srgb,var(--gold) 45%,transparent),transparent 50%),radial-gradient(circle at 100% 60%,color-mix(in srgb,var(--gold2) 30%,transparent),transparent 55%),var(--bg);background-attachment:fixed}
+html[data-ui=glass] header{background:color-mix(in srgb,var(--card) 55%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid color-mix(in srgb,var(--gold) 40%,transparent)}
+html[data-ui=glass] nav{background:color-mix(in srgb,var(--nav) 60%,transparent);backdrop-filter:blur(14px)}
+html[data-ui=glass] nav button{border-radius:22px}
+html[data-ui=glass] .card{background:color-mix(in srgb,var(--card) 60%,transparent);backdrop-filter:blur(12px);border:1px solid color-mix(in srgb,var(--gold) 25%,transparent);border-radius:22px;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+html[data-ui=glass] .btn,html[data-ui=glass] input{border-radius:16px}
+html[data-ui=glass] .btn.big{box-shadow:0 6px 20px color-mix(in srgb,var(--gold) 45%,transparent)}
+html[data-ui=glass] .gh,html[data-ui=glass] .stat,html[data-ui=glass] .diag{border-radius:16px}
+/* بسيط */
+html[data-ui=flat] header{background:var(--bg);border-bottom:0;padding:18px 16px 6px}
+html[data-ui=flat] .logo{border-radius:50%}
+html[data-ui=flat] nav{background:var(--bg);border-bottom:0;gap:0;padding:4px 12px}
+html[data-ui=flat] nav button{border:0;border-bottom:3px solid transparent;border-radius:0;padding:12px 4px}
+html[data-ui=flat] nav button.on{background:transparent;color:var(--gold2);border-bottom-color:var(--gold)}
+html[data-ui=flat] .card{background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:16px 4px}
+html[data-ui=flat] .btn,html[data-ui=flat] input,html[data-ui=flat] .gh,html[data-ui=flat] .stat,html[data-ui=flat] .diag{border-radius:6px}
+html[data-ui=flat] .btn.big{background:var(--gold)}
+/* تطبيق (التابات تحت) */
+html[data-ui=app] nav{position:fixed;top:auto;bottom:0;left:0;right:0;border-top:1px solid var(--line);border-bottom:0;padding:8px 10px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -6px 20px rgba(0,0,0,.25)}
+html[data-ui=app] nav button{border:0;border-radius:16px;font-size:14px;padding:12px 4px}
+html[data-ui=app] main{padding-bottom:90px}
+html[data-ui=app] footer{padding-bottom:90px}
+html[data-ui=app] header{border-bottom:0;border-radius:0 0 26px 26px;padding:20px 18px}
+html[data-ui=app] .card{border-radius:24px;border:0;box-shadow:0 4px 18px rgba(0,0,0,.22)}
+html[data-ui=app] .btn,html[data-ui=app] input{border-radius:14px}
+html[data-ui=app] .btn.big{border-radius:18px;padding:17px}
+html[data-ui=app] .gh,html[data-ui=app] .stat,html[data-ui=app] .diag{border-radius:14px}
+html[data-ui=app] #toast{bottom:90px}
+html[data-mode=light][data-ui=app] .card{box-shadow:0 4px 18px rgba(0,0,0,.08)}
 </style>
 </head>
 <body>
@@ -145,6 +177,8 @@ html[data-mode=light] .btn.big.red{background:var(--bad)}
     <div style="font-size:13px;color:var(--mut);margin-bottom:6px">اللون</div><div id="thmBox"></div>
     <div style="font-size:13px;color:var(--mut);margin:10px 0 6px">الوضع</div>
     <div><span class="thm" data-m="dark" onclick="setMode('dark')">🌙 داكن</span><span class="thm" data-m="light" onclick="setMode('light')">☀️ فاتح</span></div>
+    <div style="font-size:13px;color:var(--mut);margin:10px 0 6px">شكل الواجهة</div>
+    <div><span class="thm" data-u="classic" onclick="setUi('classic')">🧱 كلاسيك</span><span class="thm" data-u="glass" onclick="setUi('glass')">💎 زجاجي</span><span class="thm" data-u="flat" onclick="setUi('flat')">📄 بسيط</span><span class="thm" data-u="app" onclick="setUi('app')">📱 تطبيق (التابات تحت)</span></div>
   </div>
   <div class="card">
     <h3>التحديث</h3>
@@ -578,7 +612,9 @@ async function cdFix(){if(!confirm('هنفّذ الحل على العميل '+CD
   if(CD._stale.length)await cdKick();if(CD.mtOn&&CD.mt.ok&&CD._needMt)await cdMt();$('cdFix').textContent='✅ اتنفّذ';}
 function themeUI(){let t='gold',m='dark';try{t=localStorage.getItem('theme')||t;m=localStorage.getItem('mode')||m}catch(e){}
   $('thmBox').innerHTML=Object.entries(THEMES).map(([k,v])=>`<span class="thm ${k===t?'on':''}" onclick="setTheme('${k}')"><i style="background:${v[1]}"></i>${v[0]}</span>`).join('');
-  document.querySelectorAll('.thm[data-m]').forEach(e=>e.classList.toggle('on',e.dataset.m===m))}
+  document.querySelectorAll('.thm[data-m]').forEach(e=>e.classList.toggle('on',e.dataset.m===m));
+  const u=document.documentElement.dataset.ui||'classic';document.querySelectorAll('.thm[data-u]').forEach(e=>e.classList.toggle('on',e.dataset.u===u))}
+function setUi(u){try{localStorage.setItem('ui',u)}catch(e){}applyTheme();themeUI()}
 function setTheme(k){try{localStorage.setItem('theme',k)}catch(e){}applyTheme();themeUI()}
 function setMode(m){try{localStorage.setItem('mode',m)}catch(e){}applyTheme();themeUI()}
 function toggleAll(){const box=$('allBox');if(box.innerHTML){box.innerHTML='';return}
