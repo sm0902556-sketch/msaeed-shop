@@ -104,10 +104,14 @@ public class Engine {
                 String ip = b.optString("ip"), act = b.optString("action");
                 if (!IP.matcher(ip).matches()) return err("IP غلط");
                 int d = Math.max(1, Math.min(120, b.optInt("delay", 1))); // تأخير بالثواني قبل التنفيذ
-                String cmd = "wifi".equals(act) ? "(sleep " + d + "; wifi) >/dev/null 2>&1 </dev/null & echo DONE_OK"
-                           : "reboot".equals(act) ? "(sleep " + d + "; reboot) >/dev/null 2>&1 </dev/null & echo DONE_OK" : null;
+                String cmd = null;
+                if ("wifi".equals(act) || "reboot".equals(act)) { // بيكمّل حتى لو اتصال الـ SSH اتقفل
+                    String job = "sleep " + d + "; " + ("reboot".equals(act) ? "reboot" : "wifi");
+                    cmd = "if command -v start-stop-daemon >/dev/null 2>&1; then start-stop-daemon -S -b -m -p /tmp/msaeed-act.$$.pid -x /bin/sh -- -c '" + job + "'; "
+                        + "else (trap '' HUP INT TERM; " + job + ") >/dev/null 2>&1 </dev/null & fi; echo DONE_OK";
+                }
                 if (cmd == null) return err("أمر غير معروف");
-                Res r = ssh(ip, cmd, null, 20000);
+                Res r = ssh(ip, cmd, null, 30000);
                 return (r.ok && r.out.contains("DONE_OK")) ? "{\"ok\":true}" : err(r.err.isEmpty() ? "مارجعش رد" : r.err);
             }
             case "mt_test": {
@@ -310,7 +314,7 @@ public class Engine {
     static final String SCAN_CMD =
         "echo \"H $(uci -q get system.@system[0].hostname || cat /proc/sys/kernel/hostname)\"\n" +
         "[ -x /usr/sbin/msaeed-ghost ] && echo \"G 1\"\n" +
-        "echo \"U $(cut -d. -f1 /proc/uptime) $(cut -d' ' -f1 /proc/loadavg) $(awk '/MemAvailable/{a=$2}/MemTotal/{t=$2}END{print a+0,t+0}' /proc/meminfo) $(ubus list 'hostapd.*' 2>/dev/null | wc -l) $(dmesg 2>/dev/null | tail -300 | grep -ciE 'mcu.*time.?out|tx hang|firmware.*(crash|error)|watchdog') $(iw dev 2>/dev/null | grep -c Interface)\"\n" +
+        "echo \"U $(cut -d. -f1 /proc/uptime) $(cut -d' ' -f2 /proc/loadavg) $(awk '/MemAvailable/{a=$2}/MemTotal/{t=$2}END{print a+0,t+0}' /proc/meminfo) $(ubus list 'hostapd.*' 2>/dev/null | wc -l) $(dmesg 2>/dev/null | grep -ciE 'mcu.*(timeout|time ?out)|tx hang|firmware (crash|error)|wdt.*reset|message .* timeout') $(iw dev 2>/dev/null | grep -c 'type AP')\"\n" +
         "for i in $(iw dev 2>/dev/null | awk '$1==\"Interface\"{print $2}'); do\n" +
         "  if [ -e /sys/class/net/$i/brport/port_no ]; then\n" +
         "    echo \"I $i $(basename $(readlink /sys/class/net/$i/brport/bridge)) $(($(cat /sys/class/net/$i/brport/port_no)))\"\n" +
@@ -320,7 +324,7 @@ public class Engine {
         "for b in $(ls /sys/class/net/); do\n" +
         "  [ -r /sys/class/net/$b/brforward ] && hexdump -v -e '16/1 \"%02x \" \"\\n\"' /sys/class/net/$b/brforward 2>/dev/null | awk -v b=$b '$8==\"00\"{print \"F\",b,$1\":\"$2\":\"$3\":\"$4\":\"$5\":\"$6,$13$7}'\n" +
         "done\n" +
-        "true";
+        "true\n";
 
     static class Sta { String iface, mac, signal, ip, host; int inactive, connected; boolean wired; }
     static class Iface { String br; int port; }

@@ -115,7 +115,7 @@ const ipSort = (a, b) => a.split('.').map(Number).reduce((s, n, i) => s || n - b
 const SCAN_CMD = `
 echo "H $(uci -q get system.@system[0].hostname || cat /proc/sys/kernel/hostname)"
 [ -x /usr/sbin/msaeed-ghost ] && echo "G 1"
-echo "U $(cut -d. -f1 /proc/uptime) $(cut -d' ' -f1 /proc/loadavg) $(awk '/MemAvailable/{a=$2}/MemTotal/{t=$2}END{print a+0,t+0}' /proc/meminfo) $(ubus list 'hostapd.*' 2>/dev/null | wc -l) $(dmesg 2>/dev/null | tail -300 | grep -ciE 'mcu.*time.?out|tx hang|firmware.*(crash|error)|watchdog') $(iw dev 2>/dev/null | grep -c Interface)"
+echo "U $(cut -d. -f1 /proc/uptime) $(cut -d' ' -f2 /proc/loadavg) $(awk '/MemAvailable/{a=$2}/MemTotal/{t=$2}END{print a+0,t+0}' /proc/meminfo) $(ubus list 'hostapd.*' 2>/dev/null | wc -l) $(dmesg 2>/dev/null | grep -ciE 'mcu.*(timeout|time ?out)|tx hang|firmware (crash|error)|wdt.*reset|message .* timeout') $(iw dev 2>/dev/null | grep -c 'type AP')"
 for i in $(iw dev 2>/dev/null | awk '$1=="Interface"{print $2}'); do
   if [ -e /sys/class/net/$i/brport/port_no ]; then
     echo "I $i $(basename $(readlink /sys/class/net/$i/brport/bridge)) $(($(cat /sys/class/net/$i/brport/port_no)))"
@@ -299,6 +299,13 @@ async function clientMap() {
   return m;
 }
 
+// أمر بيتنفّذ بعد d ثانية وبيكمّل حتى لو اتصال الـ SSH اتقفل
+function delayedCmd(d, act) {
+  const job = `sleep ${d}; ${act === 'reboot' ? 'reboot' : 'wifi'}`;
+  return `if command -v start-stop-daemon >/dev/null 2>&1; then start-stop-daemon -S -b -m -p /tmp/msaeed-act.$$.pid -x /bin/sh -- -c '${job}'; ` +
+         `else (trap '' HUP INT TERM; ${job}) >/dev/null 2>&1 </dev/null & fi; echo DONE_OK`;
+}
+
 // ---------- اختبار أكسس خطوة بخطوة ----------
 function banner(ip, port) {
   return new Promise(res => {
@@ -437,9 +444,9 @@ const server = http.createServer(async (req, res) => {
       const ip = String(b.ip || ''), act = b.action;
       if (!reIp.test(ip)) return send(res, { error: 'IP غلط' });
       const d = Math.max(1, Math.min(120, parseInt(b.delay) || 1)); // تأخير بالثواني قبل التنفيذ
-      const cmd = act === 'wifi' ? `(sleep ${d}; wifi) >/dev/null 2>&1 </dev/null & echo DONE_OK` : act === 'reboot' ? `(sleep ${d}; reboot) >/dev/null 2>&1 </dev/null & echo DONE_OK` : null;
+      const cmd = act === 'wifi' || act === 'reboot' ? delayedCmd(d, act) : null;
       if (!cmd) return send(res, { error: 'أمر غير معروف' });
-      const r = await sshRun(ip, cmd, null, 20000);
+      const r = await sshRun(ip, cmd, null, 30000);
       return send(res, r.ok && r.out.includes('DONE_OK') ? { ok: true } : { error: r.err || 'مارجعش رد' });
     }
     case '/api/diag': return send(res, await diag(String(b.ip || '')));

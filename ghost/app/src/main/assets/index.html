@@ -228,15 +228,33 @@ function renderScan(){
   }
   h+='</div>';
   const gc={};for(const g of j.ghosts)gc[g.ip]=(gc[g.ip]||0)+1;
-  const bad=j.aps.map(a=>{const p=apProblems(a,gc[a.ip]||0);return {a,p,plan:apPlan(p)}}).filter(x=>x.p.length);j._bad=bad;
+  const bad=j.aps.map(a=>{const p=apProblems(a,gc[a.ip]||0);return {a,p,plan:apPlan(p,a.ip)}}).filter(x=>x.p.length);j._bad=bad;
+  // نتيجة الإصلاح اللي فات
+  const fx=getFix(),now=Date.now(),ver=[];const nohelp=JSON.parse(localStorage.getItem('nohelp')||'{}');
+  for(const [ip,f] of Object.entries(fx)){if(now-f.t>45*60e3){delete fx[ip];continue}
+    const a=j.aps.find(z=>z.ip===ip);if(!a){if(j.failed.some(z=>z.ip===ip))ver.push(['warn',ip,'لسه بيقوم أو مش بيرد — استنى دقيقة واعمل فحص تاني']);continue}
+    const sinceS=(now-f.t)/1000,rebooted=a.up&&a.up<sinceS+30,b=bad.find(z=>z.a.ip===ip);
+    const parts=[];let cls='ok';
+    if(f.act==='reboot'){if(rebooted)parts.push('✅ عمل ريستارت');else{parts.push('⛔ ماعملش ريستارت (شغال من '+fmtUp(a.up)+')');cls='bad'}}
+    else parts.push('📶 الواي فاي اتعاد تشغيله');
+    if(b){const tags=b.p.map(x=>x[2]);if(f.act==='reboot'?rebooted:true){nohelp[ip]=[...new Set([...(nohelp[ip]||[]),f.act])];
+        parts.push('⚠️ المشكلة لسه موجودة بعد '+(f.act==='reboot'?'الريستارت':'إعادة الواي فاي')+'، فده مش حلها. الأكسس محتاج تشوفه بنفسك (كهربا، كابل، أو السوفت)');}
+      if(cls==='ok')cls='warn'}
+    else if(f.act!=='reboot'||rebooted){parts.push('✅ المشكلة اتحلت');delete nohelp[ip]}
+    ver.push([cls,ip,parts.join(' — ')]);
+    if(!b||(f.act==='reboot'&&rebooted)||f.act!=='reboot')delete fx[ip]}
+  try{localStorage.setItem('fixlog',JSON.stringify(fx));localStorage.setItem('nohelp',JSON.stringify(nohelp))}catch(e){}
+  for(const x of bad)x.plan=apPlan(x.p,x.a.ip);
+  if(ver.length)h+=`<div class="card"><h3>نتيجة الإصلاح اللي فات</h3>${ver.map(v=>`<div class="diag ${v[0]}"><b class="ltr">${esc(v[1])}</b>: ${esc(v[2])}</div>`).join('')}</div>`;
   h+=`<div class="card" id="healthCard"><h3>حالة الأكسسات ${bad.length?'— <span style="color:var(--bad)">'+bad.length+' فيهم مشاكل</span>':''}</h3>`;
-  if(bad.length)h+=`<button class="btn big red" id="fixAllBtn" onclick="fixAll()">🛠️ نفّذ الحل على كل الأجهزة (${bad.length})</button><div id="fixAllLog" style="margin:8px 0"></div>`+
+  if(bad.length)h+=`<button class="btn big red" id="fixAllBtn" onclick="fixAll()" ${bad.some(x=>x.plan)?'':'disabled'}>🛠️ نفّذ الحل على كل الأجهزة (${bad.filter(x=>x.plan).length})</button><div id="fixAllLog" style="margin:8px 0"></div>`+
     bad.map(({a,p,plan})=>`<div class="gh" style="border-right-color:${p.some(x=>x[0]==='bad')?'var(--bad)':'var(--warn)'};display:block">
      <div><b class="ltr">${esc(a.ip)}</b> ${esc(a.host)} <span style="color:var(--mut);font-size:12px">— شغال من ${fmtUp(a.up)} — ${a.n} عميل</span></div>
      <div style="margin-top:6px;color:var(--gold2);font-size:13px">التشخيص:</div>
      ${p.map(x=>`<div class="d">${x[0]==='bad'?'⛔':'⚠️'} ${esc(x[1])}</div>`).join('')}
-     <div style="margin-top:6px;color:var(--gold2);font-size:13px">الحل المقترح:</div><div class="d">🛠️ ${esc(PLAN[plan])}</div>
-     <div class="row" style="margin-top:8px"><button class="btn" style="padding:8px;font-size:14px" data-fix="${esc(a.ip)}" onclick="fixOne('${esc(a.ip)}','${plan}',this)">نفّذ الحل</button>
+     <div class="d" style="font-size:12px">الأرقام: رامات فاضية ${Math.round((a.memA||0)/1024)} من ${Math.round((a.memT||0)/1024)}MB — load ${a.load} — شبكات واي فاي ${a.wifi} — أخطاء درايفر ${a.derr}</div>
+     <div style="margin-top:6px;color:var(--gold2);font-size:13px">الحل المقترح:</div><div class="d">${plan?'🛠️ '+esc(PLAN[plan]):'❔ الحل اللي اتجرّب قبل كده ماحلّش المشكلة — جرّب الحل التاني بالزرار، أو الأكسس محتاج تشوفه بنفسك'}</div>
+     <div class="row" style="margin-top:8px">${plan?`<button class="btn" style="padding:8px;font-size:14px" data-fix="${esc(a.ip)}" onclick="fixOne('${esc(a.ip)}','${plan}',this)">نفّذ الحل</button>`:''}
        ${plan!=='wifi'?`<button class="btn ghost" style="padding:8px;font-size:13px" onclick="apAct('${esc(a.ip)}','wifi',this)">📶 واي فاي بس</button>`:''}
        ${plan!=='reboot'?`<button class="btn ghost" style="padding:8px;font-size:13px" onclick="apAct('${esc(a.ip)}','reboot',this)">🔁 ريستارت</button>`:''}</div></div>`).join('');
   else if(j.okCount)h+='<div class="diag ok">✅ كل الأكسسات اللي اتفحصت سليمة، مفيش مشاكل.</div>';
@@ -255,25 +273,27 @@ function renderScan(){
 function cinfo(x){const a=[];if(x.cip)a.push('IP: <b class="ltr">'+esc(x.cip)+'</b>');if(x.cuser)a.push('كارت: <b class="ltr">'+esc(x.cuser)+'</b>');if(x.cname)a.push('<span class="ltr">'+esc(x.cname)+'</span>');return a.join(' — ')}
 function fmtUp(sec){sec=+sec||0;if(!sec)return '';const d=Math.floor(sec/86400),h=Math.floor(sec%86400/3600),m=Math.floor(sec%3600/60);return d?d+' يوم '+h+' ساعة':h?h+' ساعة '+m+' دقيقة':m+' دقيقة'}
 function apProblems(a,ghostN){const p=[];
-  if(a.wifi===0||a.hapd===0)p.push(['bad','الواي فاي واقف على الأكسس ده، فمحدش هيعرف يتوصل عليه','wifi']);
-  if(a.derr>0)p.push(['warn','درايفر الواي فاي طلّع '+a.derr+' خطأ — غالباً معلّق، وده بيعمل «متصل ومفيش نت»','wifi']);
-  if(a.memT&&a.memA/a.memT<0.12)p.push(['warn','الرامات قربت تخلص ('+Math.round(a.memA/1024)+'MB فاضي بس) — الأكسس هيبطّأ ويعلّق','reboot']);
-  if(a.load>3)p.push(['warn','الجهاز مضغوط (load '+a.load+') — المعالج شغال على الآخر','reboot']);
+  if(a.wifi===0)p.push(['bad','مفيش ولا شبكة واي فاي شغالة على الأكسس ده، فمحدش هيعرف يتوصل عليه','wifi']);
+  if(a.derr>0)p.push(['warn','درايفر الواي فاي طلّع '+a.derr+' خطأ تعليق — وده بيعمل «متصل ومفيش نت»','wifi']);
+  if(a.memT&&a.memA<6144)p.push(['warn','الرامات خلصت تقريباً ('+Math.round(a.memA/1024)+'MB فاضي بس) — الأكسس هيعلّق','reboot']);
+  if(a.load>4)p.push(['warn','الجهاز مضغوط بقاله 5 دقايق (load '+a.load+')','reboot']);
   if(ghostN>=3)p.push(['warn','عليه '+ghostN+' عميل شبح معلّقين','kick']);
   return p}
+function getFix(){try{return JSON.parse(localStorage.getItem('fixlog')||'{}')}catch(e){return {}}}
+function logFix(ip,act){if(act==='kick')return;const f=getFix();f[ip]={act,t:Date.now()};try{localStorage.setItem('fixlog',JSON.stringify(f))}catch(e){}}
 const PLAN={reboot:'ريستارت للأكسس (هيقف حوالي دقيقة ويرجع)',wifi:'إعادة تشغيل الواي فاي (العملاء هيفصلوا ثواني ويرجعوا لوحدهم)',kick:'فصل العملاء الشبح من الأكسس ده بس'};
-function apPlan(p){const t=p.map(x=>x[2]);return t.includes('reboot')?'reboot':t.includes('wifi')?'wifi':t.includes('kick')?'kick':null}
+function apPlan(p,ip){const no=(JSON.parse(localStorage.getItem('nohelp')||'{}')[ip])||[];const t=p.map(x=>x[2]).filter(x=>!no.includes(x));return t.includes('reboot')?'reboot':t.includes('wifi')?'wifi':t.includes('kick')?'kick':null}
 async function runPlan(ip,act){
   if(act==='kick'){const items=LAST.ghosts.filter(g=>g.ip===ip).map(g=>({ip:g.ip,iface:g.iface,mac:g.mac}));
     const r=await api('kick',{items});if(r.error)return {ok:false,msg:r.error};const n=r.results.filter(x=>x.ok).length;return {ok:n>0,msg:'اتفصل '+n+' من '+items.length+' عميل شبح'}}
-  const r=await api('ap_action',{ip,action:act});return r.error?{ok:false,msg:r.error}:{ok:true,msg:act==='wifi'?'الواي فاي بيعيد التشغيل':'الأكسس بيعمل ريستارت'}}
+  const r=await api('ap_action',{ip,action:act});if(!r.error)logFix(ip,act);return r.error?{ok:false,msg:r.error}:{ok:true,msg:act==='wifi'?'الواي فاي بيعيد التشغيل':'الأكسس بيعمل ريستارت'}}
 async function fixOne(ip,act,btn){if(!confirm('هنفّذ على '+ip+': '+PLAN[act]+'. أكمل؟'))return;
   btn.disabled=true;const t=btn.textContent;btn.textContent='بنفّذ...';let r;try{r=await runPlan(ip,act)}catch(e){r={ok:false,msg:'حصلت مشكلة'}}
   btn.textContent=r.ok?'✅ اتنفّذ':t;if(!r.ok)btn.disabled=false;toast((r.ok?'✅ ':'⛔ ')+ip+': '+r.msg)}
 async function fixAll(){const list=(LAST._bad||[]).filter(x=>x.plan);if(!list.length)return;
   const kicks=list.filter(x=>x.plan==='kick'),acts=list.filter(x=>x.plan!=='kick'),rb=acts.filter(x=>x.plan==='reboot');
   if(!confirm('هنفّذ الحل على '+list.length+' أكسس:\n'+list.map(x=>x.a.ip+' ← '+PLAN[x.plan]).join('\n')+
-    '\n\nالطريقة: هبعت الأمر لكل الأجهزة مع بعض وهي لسه متوصلة، وكلهم هينفّذوا في نفس اللحظة بعد حوالي 25 ثانية، عشان الأجهزة اللي ورا بعض في السلك ماتتقطعش قبل ما يوصلها الأمر.'+
+    '\n\nالطريقة: هبعت الأمر لكل الأجهزة مع بعض وهي لسه متوصلة، وكلهم هينفّذوا في نفس اللحظة بعد حوالي 40 ثانية، عشان الأجهزة اللي ورا بعض في السلك ماتتقطعش قبل ما يوصلها الأمر.'+
     (rb.length?'\n\n⚠️ الأجهزة اللي هتعمل ريستارت ('+rb.length+') هتقف حوالي دقيقة، ومعاها أي أكسس وراها في السلك.':'')+'\n\nأكمل؟'))return;
   const btn=$('fixAllBtn'),log=$('fixAllLog');btn.disabled=true;log.innerHTML='';
   const add=(cls,html)=>{const d=document.createElement('div');d.className='diag '+cls;d.innerHTML=html;log.appendChild(d);return d};
@@ -283,17 +303,21 @@ async function fixAll(){const list=(LAST._bad||[]).filter(x=>x.plan);if(!list.le
     let r;try{r=await runPlan(x.a.ip,'kick')}catch(e){r={ok:false,msg:'حصلت مشكلة'}}
     l.className='diag '+(r.ok?'ok':'bad');l.innerHTML=(r.ok?'✅ ':'⛔ ')+'<b class="ltr">'+esc(x.a.ip)+'</b>: '+esc(r.msg);if(r.ok)mark(x.a.ip)}
   // 2) إرسال الأوامر لكل الأجهزة مع بعض، والتنفيذ في نفس اللحظة
-  if(acts.length){const W=25,t0=Date.now();
+  if(acts.length){const W=40,t0=Date.now();
     const info=add('info','<span class="spin"></span> ببعت أمر الإصلاح لـ '+acts.length+' أكسس مع بعض...');
-    const res=await Promise.all(acts.map(async x=>{const d=Math.max(5,Math.round(W-(Date.now()-t0)/1000));
+    const send1=async x=>{const d=Math.max(5,Math.round(W-(Date.now()-t0)/1000));
       let r;try{r=await api('ap_action',{ip:x.a.ip,action:x.plan,delay:d})}catch(e){r={error:'حصلت مشكلة'}}
-      return {x,r}}));
+      if(!r.error)logFix(x.a.ip,x.plan);return {x,r}};
+    const res=await Promise.all(acts.map(send1));
+    const again=res.filter(o=>o.r.error);   // إعادة إرسال للي الأمر ماوصلوش، قبل ما الباقيين ينفّذوا
+    if(again.length&&(Date.now()-t0)/1000<W-8){info.innerHTML='<span class="spin"></span> بعيد إرسال الأمر لـ '+again.length+' أكسس ماوصلهمش...';
+      const r2=await Promise.all(again.map(o=>send1(o.x)));r2.forEach(n=>{const o=res.find(z=>z.x===n.x);o.r=n.r})}
     const okN=res.filter(o=>!o.r.error).length;
     info.className='diag '+(okN===acts.length?'ok':'warn');
     info.innerHTML=(okN===acts.length?'✅ ':'⚠️ ')+'الأمر وصل لـ '+okN+' من '+acts.length+' أكسس، وهينفّذوا مع بعض خلال ثواني.';
     for(const {x,r} of res){if(r.error)add('bad','⛔ <b class="ltr">'+esc(x.a.ip)+'</b>: '+esc(r.error));else{mark(x.a.ip);add('ok','✅ <b class="ltr">'+esc(x.a.ip)+'</b>: '+esc(PLAN[x.plan]))}}
     // 3) فحص تاني أوتوماتيك عشان نتأكد
-    const cd=add('info','');let left=rb.length?150:60;
+    const cd=add('info','');let left=rb.length?180:90;
     const tick=()=>{if(!document.body.contains(cd))return;if(left<=0){cd.innerHTML='🔍 بعمل فحص تاني عشان أتأكد...';doScan(true);return}
       cd.innerHTML='⏳ هعمل فحص تاني لوحدي بعد '+left+' ثانية عشان أتأكد إن الأجهزة رجعت والمشاكل اتحلت.';left--;setTimeout(tick,1000)};tick();}
   btn.disabled=false;btn.textContent='🛠️ اتبعت الحل لكل الأجهزة';}
@@ -302,7 +326,7 @@ async function apAct(ip,act,btn){
   btn.disabled=true;const t=btn.textContent;btn.textContent='...';
   let r;try{r=await api('ap_action',{ip,action:act})}catch(e){btn.disabled=false;btn.textContent=t;return}
   btn.textContent=t;
-  if(r.error){btn.disabled=false;toast(r.error)}else toast(act==='wifi'?'✅ الواي فاي بيعيد التشغيل على '+ip:'✅ الأكسس '+ip+' بيعمل ريستارت')}
+  if(r.error){btn.disabled=false;toast(r.error)}else{logFix(ip,act);}if(!r.error)toast(act==='wifi'?'✅ الواي فاي بيعيد التشغيل على '+ip:'✅ الأكسس '+ip+' بيعمل ريستارت')}
 function toggleAll(){const box=$('allBox');if(box.innerHTML){box.innerHTML='';return}
   const gh=new Set(LAST.ghosts.map(g=>g.mac+'@'+g.ip));const by={};
   for(const x of LAST.all)(by[x.ip]=by[x.ip]||[]).push(x);
