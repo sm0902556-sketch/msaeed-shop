@@ -57,11 +57,14 @@ th{color:var(--mut)}
 footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{color:var(--gold2);text-decoration:none}
 #updBar{display:none;align-items:center;gap:10px;justify-content:space-between;background:linear-gradient(135deg,#3a2f12,#2a2210);border-bottom:1px solid var(--gold);padding:10px 14px;color:var(--gold2);font-size:14px}
 #updBar button{background:var(--gold);color:#1a1408;border:0;border-radius:8px;padding:8px 12px;font:inherit;font-weight:700}
+#refBtn{margin-inline-start:auto;background:transparent;border:1px solid var(--gold);color:var(--gold2);border-radius:12px;width:44px;height:44px;font-size:20px;cursor:pointer}
+#pullInd{position:fixed;top:0;left:50%;margin-left:-110px;width:220px;text-align:center;background:var(--gold);color:#1a1408;font-weight:700;padding:10px;border-radius:0 0 14px 14px;z-index:20;transform:translateY(-60px);opacity:0;transition:transform .15s,opacity .15s;pointer-events:none}
 #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--gold);color:#1a1408;padding:10px 18px;border-radius:10px;font-weight:700;display:none;z-index:9}
 </style>
 </head>
 <body>
-<header><div class="logo">M</div><div><h1>صياد الشبح</h1><small>المبرمج محمد سعيد — 01123840671</small></div></header>
+<header><div class="logo">M</div><div><h1>صياد الشبح</h1><small>المبرمج محمد سعيد — 01123840671</small></div><button id="refBtn" onclick="doRefresh()" title="تحديث">🔄</button></header>
+<div id="pullInd">⬇️ اسحب لتحت للتحديث</div>
 
 <div id="pinBox" class="hide"><main><div class="card"><h3>ادخل الرقم السري</h3>
 <input id="pin" type="password" inputmode="numeric"><div style="height:10px"></div><button class="btn big" onclick="sendPin()">دخول</button></div></main></div>
@@ -253,6 +256,21 @@ function applyUpd(){if(NEWAPK)Android.openLink(NEWAPK);else checkUpd(true)}
 function showJustUpdated(){try{const j=Android.justUpdated();if(!j)return;const v=JSON.parse(j);
   $('updTxt').textContent='🎉 اتحدّث البرنامج للإصدار '+v.name+(v.notes?' — '+v.notes:'');$('updBar').style.display='flex';
   $('updBar').querySelector('button').textContent='تمام';$('updBar').querySelector('button').onclick=()=>$('updBar').style.display='none'}catch(e){}}
+function busyNow(){return ['scanBtn','instBtn','kickBtn'].some(i=>$(i)&&$(i).disabled)}
+async function doRefresh(){
+  if(busyNow())return toast('استنى العملية اللي شغالة تخلص');
+  toast('🔄 بيحدّث...');
+  if(NATIVE){let v=null;try{v=await api('upd_check')}catch(e){}
+    if(v&&v.updated)return; /* البرنامج هيعيد الفتح لوحده بالنسخة الجديدة */}
+  setTimeout(()=>location.reload(),300);
+}
+(function(){let py=null,pd=0;const PI=$('pullInd');
+  addEventListener('touchstart',e=>{py=(scrollY<=0&&e.touches.length===1)?e.touches[0].clientY:null;pd=0},{passive:true});
+  addEventListener('touchmove',e=>{if(py===null)return;pd=e.touches[0].clientY-py;
+    if(pd>10&&scrollY<=0){PI.style.transform=`translateY(${Math.min(pd,130)-60}px)`;PI.style.opacity=Math.min(1,pd/100);
+      PI.textContent=pd>100?'↻ سيب عشان يتحدّث':'⬇️ اسحب لتحت للتحديث'}},{passive:true});
+  addEventListener('touchend',()=>{const go=py!==null&&pd>100;py=null;pd=0;PI.style.transform='translateY(-60px)';PI.style.opacity=0;if(go)doRefresh()});
+})();
 async function init(){if(NATIVE){document.querySelectorAll('.pcOnly').forEach(e=>e.remove());try{$('curVer').textContent=Android.appVersion()}catch(e){}showJustUpdated();setTimeout(()=>checkUpd(false),2500)}else document.querySelectorAll('.nativeOnly').forEach(e=>e.remove());try{await loadCfg();$('app').classList.remove('hide');$('pinBox').classList.add('hide')}catch(e){}}
 init();
 </script>
