@@ -309,9 +309,11 @@ async function rebootAll(){const aps=(LAST&&LAST.aps)||[];if(!aps.length)return;
   info.className='diag '+(okN===aps.length?'ok':'warn');
   info.innerHTML=(okN===aps.length?'✅ ':'⚠️ ')+'أمر الريستارت وصل لـ '+okN+' من '+aps.length+' أكسس، وهيعملوا ريستارت مع بعض في نفس اللحظة.';
   for(const o of res.filter(o=>o.r.error))add('bad','⛔ <b class="ltr">'+esc(o.a.ip)+'</b>: '+esc(arE(o.r.error)));
-  const cd=add('info','');let left=180;
-  const tick=()=>{if(!document.body.contains(cd))return;if(left<=0){cd.innerHTML='🔍 بعمل فحص تاني عشان أتأكد...';doScan(true);return}
-    cd.innerHTML='⏳ هعمل فحص تاني لوحدي بعد '+left+' ثانية، وهقولك مين عمل ريستارت ومين لأ.';left--;setTimeout(tick,1000)};tick();
+  const execAt=t0+W*1000,checkAt=execAt+60000,cd=add('info','');   // الفحص بعد 60 ثانية من الريستارت نفسه
+  const tick=()=>{if(!document.body.contains(cd))return;const now=Date.now();
+    if(now>=checkAt){cd.innerHTML='🔍 بعمل فحص تاني عشان أتأكد...';doScan(true);return}
+    cd.innerHTML=now<execAt?'⏳ الأكسسات هتعمل ريستارت بعد '+Math.ceil((execAt-now)/1000)+' ثانية، وبعدها بـ 60 ثانية هعمل فحص لوحدي.'
+      :'⏳ الأكسسات بتعمل ريستارت دلوقتي — هعمل فحص بعد '+Math.ceil((checkAt-now)/1000)+' ثانية، وهقولك مين عمل ريستارت ومين لأ.';setTimeout(tick,1000)};tick();
   btn.textContent='🔁 اتبعت الريستارت لكل الرينج';}
 function cinfo(x){const a=[];if(x.cip)a.push('IP: <b class="ltr">'+esc(x.cip)+'</b>');if(x.cuser)a.push('كارت: <b class="ltr">'+esc(x.cuser)+'</b>');if(x.cname)a.push('<span class="ltr">'+esc(x.cname)+'</span>');return a.join(' — ')}
 function fmtUp(sec){sec=+sec||0;if(!sec)return '';const d=Math.floor(sec/86400),h=Math.floor(sec%86400/3600),m=Math.floor(sec%3600/60);return d?d+' يوم '+h+' ساعة':h?h+' ساعة '+m+' دقيقة':m+' دقيقة'}
@@ -362,9 +364,11 @@ async function fixAll(){const list=(LAST._bad||[]).filter(x=>x.plan);if(!list.le
     info.innerHTML=(okN===acts.length?'✅ ':'⚠️ ')+'الأمر وصل لـ '+okN+' من '+acts.length+' أكسس، وهينفّذوا مع بعض خلال ثواني.';
     for(const {x,r} of res){if(r.error)add('bad','⛔ <b class="ltr">'+esc(x.a.ip)+'</b>: '+esc(arE(r.error)));else{mark(x.a.ip);add('ok','✅ <b class="ltr">'+esc(x.a.ip)+'</b>: '+esc(PLAN[x.plan]))}}
     // 3) فحص تاني أوتوماتيك عشان نتأكد
-    const cd=add('info','');let left=rb.length?180:90;
-    const tick=()=>{if(!document.body.contains(cd))return;if(left<=0){cd.innerHTML='🔍 بعمل فحص تاني عشان أتأكد...';doScan(true);return}
-      cd.innerHTML='⏳ هعمل فحص تاني لوحدي بعد '+left+' ثانية عشان أتأكد إن الأجهزة رجعت والمشاكل اتحلت.';left--;setTimeout(tick,1000)};tick();}
+    const execAt=t0+W*1000,checkAt=execAt+60000,cd=add('info','');   // الفحص بعد 60 ثانية من التنفيذ نفسه
+    const tick=()=>{if(!document.body.contains(cd))return;const now=Date.now();
+      if(now>=checkAt){cd.innerHTML='🔍 بعمل فحص تاني عشان أتأكد...';doScan(true);return}
+      cd.innerHTML=now<execAt?'⏳ الحل هيتنفّذ على الأكسسات بعد '+Math.ceil((execAt-now)/1000)+' ثانية، وبعدها بـ 60 ثانية هعمل فحص لوحدي.'
+        :'⏳ الحل بيتنفّذ دلوقتي — هعمل فحص بعد '+Math.ceil((checkAt-now)/1000)+' ثانية عشان أتأكد إن الأجهزة رجعت والمشاكل اتحلت.';setTimeout(tick,1000)};tick();}
   btn.disabled=false;btn.textContent='🛠️ اتبعت الحل لكل الأجهزة';}
 async function apAct(ip,act,btn){
   if(!confirm(act==='wifi'?'هعيد تشغيل الواي فاي على '+ip+'، والعملاء اللي عليه هيفصلوا ثواني ويرجعوا. أكمل؟':'هعمل ريستارت للأكسس '+ip+'، وهيقف حوالي دقيقة. أكمل؟'))return;
