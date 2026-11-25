@@ -279,8 +279,34 @@ function renderScan(){
     <div class="tw"><table>${j.failed.map(f=>`<tr><td>${esc(f.ip)}</td><td style="direction:rtl;text-align:right;white-space:normal">${esc(f.err)}</td><td><button class="btn" style="padding:6px 10px;font-size:13px" onclick="doDiag('${esc(f.ip)}')">اختبار</button></td></tr>`).join('')}</table></div>
     <div id="diagRes" style="padding:0 12px 12px"></div></details>`;
   h+='</div>';
+  if(j.aps.length)h+=`<div class="card"><h3>ريستارت لكل الرينج</h3>
+    <div style="font-size:13px;color:var(--mut);line-height:1.7;margin-bottom:8px">بيعمل ريستارت لكل الأكسسات اللي اتفحصت (${j.aps.length} أكسس) مع بعض في نفس اللحظة، عشان الأجهزة اللي ورا بعض في السلك ماتتقطعش قبل ما يوصلها الأمر. النت هيقف على الرينج حوالي دقيقتين.</div>
+    <button class="btn big red" id="rbAllBtn" onclick="rebootAll()">🔁 ريستارت لكل الرينج (${j.aps.length} أكسس)</button><div id="rbAllLog" style="margin-top:8px"></div></div>`;
   $('scanRes').innerHTML=h;
 }
+async function rebootAll(){const aps=(LAST&&LAST.aps)||[];if(!aps.length)return;
+  const rs=LAST.ranges.map(r=>r+'.x').join(' و ');
+  if(!confirm('هعمل ريستارت لكل الأكسسات اللي اتفحصت في '+rs+' ('+aps.length+' أكسس) مع بعض.\n\nكل العملاء على الرينج هيفصلوا، والنت هيقف حوالي دقيقتين لحد ما الأكسسات تقوم.'+(LAST.failed.length?'\n\n⚠️ '+LAST.failed.length+' أكسس البرنامج مش قادر يدخلهم، ودول مش هيعملوا ريستارت.':'')+'\n\nأكمل؟'))return;
+  const btn=$('rbAllBtn'),log=$('rbAllLog');btn.disabled=true;log.innerHTML='';
+  const add=(cls,html)=>{const d=document.createElement('div');d.className='diag '+cls;d.innerHTML=html;log.appendChild(d);return d};
+  const info=add('info','<span class="spin"></span> ببعت أمر الريستارت لـ '+aps.length+' أكسس مع بعض...');
+  const W=40,t0=Date.now();
+  const send1=async a=>{const d=Math.max(5,Math.round(W-(Date.now()-t0)/1000));
+    let r;try{r=await api('ap_action',{ip:a.ip,action:'reboot',delay:d})}catch(e){r={error:'حصلت مشكلة'}}
+    if(!r.error)logFix(a.ip,'reboot');return {a,r}};
+  // نبعت على دفعات عشان مانضغطش على الفون، بس كله جوه نفس الـ 40 ثانية
+  const res=[];for(let i=0;i<aps.length;i+=20){res.push(...await Promise.all(aps.slice(i,i+20).map(send1)))}
+  const again=res.filter(o=>o.r.error);
+  if(again.length&&(Date.now()-t0)/1000<W-8){info.innerHTML='<span class="spin"></span> بعيد إرسال الأمر لـ '+again.length+' أكسس ماوصلهمش...';
+    const r2=await Promise.all(again.map(o=>send1(o.a)));r2.forEach(n=>{const o=res.find(z=>z.a===n.a);o.r=n.r})}
+  const okN=res.filter(o=>!o.r.error).length;
+  info.className='diag '+(okN===aps.length?'ok':'warn');
+  info.innerHTML=(okN===aps.length?'✅ ':'⚠️ ')+'أمر الريستارت وصل لـ '+okN+' من '+aps.length+' أكسس، وهيعملوا ريستارت مع بعض خلال ثواني.';
+  for(const o of res.filter(o=>o.r.error))add('bad','⛔ <b class="ltr">'+esc(o.a.ip)+'</b>: '+esc(o.r.error));
+  const cd=add('info','');let left=180;
+  const tick=()=>{if(!document.body.contains(cd))return;if(left<=0){cd.innerHTML='🔍 بعمل فحص تاني عشان أتأكد...';doScan(true);return}
+    cd.innerHTML='⏳ هعمل فحص تاني لوحدي بعد '+left+' ثانية، وهقولك مين عمل ريستارت ومين لأ.';left--;setTimeout(tick,1000)};tick();
+  btn.textContent='🔁 اتبعت الريستارت لكل الرينج';}
 function cinfo(x){const a=[];if(x.cip)a.push('IP: <b class="ltr">'+esc(x.cip)+'</b>');if(x.cuser)a.push('كارت: <b class="ltr">'+esc(x.cuser)+'</b>');if(x.cname)a.push('<span class="ltr">'+esc(x.cname)+'</span>');return a.join(' — ')}
 function fmtUp(sec){sec=+sec||0;if(!sec)return '';const d=Math.floor(sec/86400),h=Math.floor(sec%86400/3600),m=Math.floor(sec%3600/60);return d?d+' يوم '+h+' ساعة':h?h+' ساعة '+m+' دقيقة':m+' دقيقة'}
 function apProblems(a,ghostN){const p=[];
