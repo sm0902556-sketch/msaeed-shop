@@ -78,6 +78,12 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
 
 <section id="t-scan">
   <div class="card">
+    <h3>🔎 تشخيص عميل</h3>
+    <div style="font-size:13px;color:var(--mut);margin-bottom:8px">للعميل اللي بيشتكي من «متصل ولا يتوفر إنترنت»: اكتب الماك بتاعه، أو الـ IP، أو اسم الكارت (لو المايكروتك شغّال في الإعدادات).</div>
+    <div class="row"><input id="cq" placeholder="ماك أو IP أو اسم الكارت" onkeydown="if(event.key==='Enter')clientDiag()"><button class="btn" style="flex:0 0 auto" id="cdBtn" onclick="clientDiag()">تشخيص</button></div>
+    <div id="cdProg"></div><div id="cdRes"></div>
+  </div>
+  <div class="card">
     <h3>اختار الرينجات اللي هتتفحص</h3>
     <div style="font-size:13px;color:var(--mut);margin-bottom:8px">دوس على الرينج عشان تختاره (هيبقى دهبي)، ودوس تاني عشان تشيله.</div>
     <div id="scanChips" class="chips"></div>
@@ -364,6 +370,50 @@ async function apAct(ip,act,btn){
   let r;try{r=await api('ap_action',{ip,action:act})}catch(e){btn.disabled=false;btn.textContent=t;return}
   btn.textContent=t;
   if(r.error){btn.disabled=false;toast(r.error)}else{logFix(ip,act);}if(!r.error)toast(act==='wifi'?'✅ الواي فاي بيعيد التشغيل على '+ip:'✅ الأكسس '+ip+' بيعمل ريستارت')}
+let CD=null;
+async function clientDiag(){const q=$('cq').value.trim();if(!q)return toast('اكتب الماك أو الـ IP أو اسم الكارت');
+  $('cdRes').innerHTML='';let j;try{j=await withProgress('cdProg',['cdBtn','scanBtn','probBtn'],()=>api('client_diag',{q}))}catch(e){return}
+  CD=j;renderCD()}
+function renderCD(){const j=CD,box=$('cdRes');
+  if(j.error&&!j.mac){box.innerHTML=`<div class="diag bad">${esc(j.error)}</div>`+(j.mt&&j.mt.err?`<div class="diag warn">المايكروتك: ${esc(j.mt.err)}</div>`:'');return}
+  const F=[],mt=j.mt||{},aps=(j.aps||[]).slice().sort((a,b)=>a.inactive-b.inactive);let stale=[],needMt=false;
+  // الأكسسات
+  if(!aps.length)F.push(['warn','العميل مش ظاهر على أي أكسس من الـ '+j.apsKnown+' اللي البرنامج يعرفهم'+(j.apsFailed?' ('+j.apsFailed+' مش راضيين يدخلوا)':'')+'. يا إما مش متوصل دلوقتي، يا إما على رينج ماتفحصش قبل كده.']);
+  else{const real=aps[0];stale=aps.slice(1);
+    F.push(['ok','متوصل على <b class="ltr">'+esc(real.ip)+'</b> '+esc(real.host)+' — الإشارة <span class="ltr">'+esc(real.signal)+' dBm</span> — آخر حركة من '+sec(real.inactive)]);
+    if(+real.signal<-80)F.push(['warn','الإشارة ضعيفة (<span class="ltr">'+esc(real.signal)+' dBm</span>) — العميل بعيد عن الأكسس، وده ممكن يقطع النت']);
+    if(real.inactive>60000)F.push(['warn','العميل ساكت حتى على الأكسس اللي هو عليه بقاله '+sec(real.inactive)+' — ممكن يكون الموبايل نايم أو الاتصال واقف']);
+    for(const x of stale)F.push(['bad','معلّق كمان على <b class="ltr">'+esc(x.ip)+'</b> '+esc(x.host)+' وساكت عليه بقاله '+sec(x.inactive)+' — ده ممكن يعمل «متصل ومفيش نت»'])}
+  // المايكروتك
+  if(!j.mtOn)F.push(['info','المايكروتك مش متشغّل في الإعدادات، فمش هقدر أكشف مشاكل الهوتسبوت والـ IP. شغّله عشان التشخيص يبقى كامل.']);
+  else if(!mt.ok)F.push(['warn','مقدرتش أوصل للمايكروتك: '+esc(mt.err||'')]);
+  else{const L=mt.leases||[],H=mt.hosts||[],A=mt.active||[],C=mt.cookies||[],X=mt.conflicts||[];
+    const lip=L.map(x=>x.address);
+    if(!L.length&&!H.length&&!A.length)F.push(['bad','مش واخد IP من المايكروتك خالص — غالباً عامل IP ثابت، أو واخد IP من راوتر أو أكسس تاني بيوزّع DHCP']);
+    for(const l of L){if(l['block-access']==='true'){F.push(['bad','الـ DHCP Lease بتاعه عليه Block Access']);needMt=true}
+      if(l.status&&l.status!=='bound'){F.push(['warn','حالة الـ DHCP: '+esc(l.status)+' (المفروض bound)']);needMt=true}}
+    if(L.length)F.push(['ok','واخد IP <b class="ltr">'+esc(lip.join(' , '))+'</b>'+(L[0]['host-name']?' — '+esc(L[0]['host-name']):'')]);
+    for(const x of X){F.push(['bad','تعارض IP: العنوان <b class="ltr">'+esc(x.address)+'</b> مستخدم كمان من جهاز تاني <span class="ltr">'+esc(x['mac-address'])+'</span> ('+esc(x._src)+')']);needMt=true}
+    if(H.length>1){F.push(['warn','متسجل '+H.length+' مرة في Hotspot Hosts — التكرار بيعلّقه']);needMt=true}
+    for(const h of H){if(lip.length&&!lip.includes(h.address)){F.push(['bad','الهوتسبوت فاكره بعنوان قديم <b class="ltr">'+esc(h.address)+'</b> غير اللي واخده من الـ DHCP — من أشهر أسباب «متصل ومفيش نت»']);needMt=true}
+      if(h.authorized!=='true'&&h.bypassed!=='true'){F.push(['warn','متوصل بالهوتسبوت بس مش مسجل دخول. لو صفحة الدخول مش بتفتحله، لازم الـ Host بتاعه يتمسح']);needMt=true}}
+    for(const a of A)F.push(['ok','مسجل دخول بالكارت <b class="ltr">'+esc(a.user)+'</b>'+(a.address?' — IP <b class="ltr">'+esc(a.address)+'</b>':'')+(a.uptime?' من '+esc(a.uptime):'')]);
+    if(C.length)F.push(['info','عليه '+C.length+' كوكي محفوظة — ممكن تدخّله أوتوماتيك بكارت قديم أو خلصان']);
+    if(!H.length&&L.length)F.push(['info','مش ظاهر في Hotspot Hosts — يعني الهوتسبوت مش شايفه أصلاً، فصفحة الدخول مش هتظهرله']),needMt=true;}
+  const plan=[];if(stale.length)plan.push('فصله من الأكسس المعلّق عليه ('+stale.map(x=>x.ip).join(' , ')+')');
+  if(j.mtOn&&mt.ok&&needMt)plan.push('تنظيفه من المايكروتك (Host والكوكي والـ Lease الديناميك)، وبعدها يفصل الواي فاي ويوصل تاني');
+  let h=`<div style="margin-top:10px;color:var(--gold2)">الماك: <b class="ltr">${esc(j.mac)}</b></div>`+F.map(f=>`<div class="diag ${f[0]}">${f[0]==='bad'?'⛔':f[0]==='warn'?'⚠️':f[0]==='ok'?'✅':'ℹ️'} ${f[1]}</div>`).join('');
+  h+=`<div style="margin-top:10px;color:var(--gold2)">الحل المقترح:</div>`+(plan.length?plan.map(p=>`<div class="diag info">🛠️ ${esc(p)}</div>`).join('')+`<button class="btn big" id="cdFix" onclick="cdFix()">نفّذ الحل</button>`
+     :`<div class="diag info">مفيش مشكلة واضحة على الأكسسات${j.mtOn?' ولا المايكروتك':''}. خلي العميل يفصل الواي فاي ويوصل تاني${j.mtOn&&mt.ok?'، ولو لسه، جرّب «تنظيف من المايكروتك»':''}.</div>`);
+  h+=`<div class="row" style="margin-top:8px">${stale.length?`<button class="btn ghost" style="padding:8px;font-size:13px" onclick="cdKick(this)">✂️ فصل من الأكسس المعلّق</button>`:''}${j.mtOn&&mt.ok?`<button class="btn ghost" style="padding:8px;font-size:13px" onclick="cdMt(this)">🧹 تنظيف من المايكروتك</button>`:''}</div><div id="cdLog" style="margin-top:8px"></div>`;
+  box.innerHTML=h;CD._stale=stale;CD._needMt=needMt}
+async function cdKick(btn){const it=CD._stale.map(x=>({ip:x.ip,iface:x.iface,mac:CD.mac}));if(!it.length)return;if(btn)btn.disabled=true;
+  const r=await api('kick',{items:it});const n=r.error?0:r.results.filter(x=>x.ok).length;
+  $('cdLog').insertAdjacentHTML('beforeend',`<div class="diag ${n?'ok':'bad'}">${n?'✅ اتفصل من '+n+' أكسس معلّق':'⛔ '+esc(r.error||'الفصل فشل')}</div>`)}
+async function cdMt(btn){if(btn)btn.disabled=true;const r=await api('mt_fix',{mac:CD.mac});
+  $('cdLog').insertAdjacentHTML('beforeend',r.error?`<div class="diag bad">⛔ ${esc(r.error)}</div>`:r.log.map(l=>`<div class="diag ${l[0]==='✗'?'bad':'ok'}">${esc(l)}</div>`).join('')+'<div class="diag info">خلي العميل يقفل الواي فاي ويفتحه تاني، وصفحة الدخول هتظهرله.</div>')}
+async function cdFix(){if(!confirm('هنفّذ الحل على العميل '+CD.mac+'. أكمل؟'))return;$('cdFix').disabled=true;
+  if(CD._stale.length)await cdKick();if(CD.mtOn&&CD.mt.ok&&CD._needMt)await cdMt();$('cdFix').textContent='✅ اتنفّذ';}
 function toggleAll(){const box=$('allBox');if(box.innerHTML){box.innerHTML='';return}
   const gh=new Set(LAST.ghosts.map(g=>g.mac+'@'+g.ip));const by={};
   for(const x of LAST.all)(by[x.ip]=by[x.ip]||[]).push(x);

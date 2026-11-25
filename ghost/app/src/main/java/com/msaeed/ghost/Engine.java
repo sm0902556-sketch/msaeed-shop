@@ -132,16 +132,20 @@ public class Engine {
             }
         }
         if (!busy.compareAndSet(false, true)) return err("فيه عملية شغالة دلوقتي، استنى لما تخلص");
+        KeepAlive.start(ctx);   // يكمّل في الخلفية لو خرجت من البرنامج
         try {
             switch (path) {
                 case "discover": { List<String> f = discover(ranges); return new JSONObject().put("found", f.size()).toString(); }
                 case "scan": return scan(ranges, b.optBoolean("rediscover")).toString();
                 case "kick": return new JSONObject().put("results", kick(b.optJSONArray("items"))).toString();
+                case "client_diag": return clientDiag(b.optString("q")).toString();
+                case "mt_fix": return mtFix(b.optString("mac"), b.optJSONArray("ips")).toString();
                 case "install": return new JSONObject().put("results", install(ranges, b.optBoolean("remove"))).toString();
             }
             return err("not found");
         } finally {
             busy.set(false); pText = ""; pDone.set(0); pTotal.set(0);
+            KeepAlive.stop(ctx);
         }
     }
 
@@ -185,7 +189,7 @@ public class Engine {
         return out;
     }
 
-    private void progress(String t, int total) { pText = t; pDone.set(0); pTotal.set(total); }
+    private void progress(String t, int total) { pText = t; pDone.set(0); pTotal.set(total); KeepAlive.text(ctx, t); }
 
     static String rangeOf(String ip) { return ip.substring(0, ip.lastIndexOf('.')); }
 
@@ -475,6 +479,104 @@ public class Engine {
             } catch (Exception e) { } // مفيش هوتسبوت
         }
         return m;
+    }
+
+    // ---------------- تشخيص عميل ----------------
+    static JSONArray rows(List<Map<String, String>> l) { JSONArray a = new JSONArray(); for (Map<String, String> m : l) a.put(new JSONObject(m)); return a; }
+
+    private List<Map<String, String>> q(Ros r, String menu, String filter) {
+        try { return r.run(menu + "/print", "?" + filter); } catch (Exception e) { return new ArrayList<>(); }
+    }
+
+    private JSONObject clientDiag(String query) throws Exception {
+        query = query.trim();
+        JSONObject o = new JSONObject().put("q", query);
+        String mac = null;
+        String qm = query.toLowerCase().replaceAll("[^0-9a-f]", "");
+        if (qm.length() == 12 && query.matches("(?i)^[0-9a-f:\\-\\. ]+$")) mac = qm.replaceAll("(..)(?!$)", "$1:");
+        boolean mtOn = cfg.optBoolean("mt_on") && !cfg.optString("mt_ip", "").isEmpty();
+        JSONObject mt = new JSONObject();
+        o.put("mtOn", mtOn);
+        if (mtOn) {
+            progress("بسأل المايكروتك عن العميل", 1);
+            try (Ros r = mtOpen()) {
+                if (mac == null) { // دوّر بالـ IP أو اسم الكارت
+                    List<Map<String, String>> hit = new ArrayList<>();
+                    if (IP.matcher(query).matches()) {
+                        for (String m : new String[]{"/ip/hotspot/active", "/ip/hotspot/host", "/ip/dhcp-server/lease", "/ip/arp"}) { hit = q(r, m, "address=" + query); if (!hit.isEmpty()) break; }
+                    } else {
+                        hit = q(r, "/ip/hotspot/active", "user=" + query);
+                        if (hit.isEmpty()) hit = q(r, "/ip/hotspot/cookie", "user=" + query);
+                    }
+                    for (Map<String, String> h : hit) if (h.get("mac-address") != null) { mac = h.get("mac-address").toLowerCase(); break; }
+                }
+                if (mac != null) {
+                    String M = mac.toUpperCase();
+                    mt.put("leases", rows(q(r, "/ip/dhcp-server/lease", "mac-address=" + M)));
+                    mt.put("hosts", rows(q(r, "/ip/hotspot/host", "mac-address=" + M)));
+                    mt.put("active", rows(q(r, "/ip/hotspot/active", "mac-address=" + M)));
+                    mt.put("cookies", rows(q(r, "/ip/hotspot/cookie", "mac-address=" + M)));
+                    mt.put("arp", rows(q(r, "/ip/arp", "mac-address=" + M)));
+                    Set<String> ips = new HashSet<>();
+                    for (String k : new String[]{"leases", "hosts", "active", "arp"}) { JSONArray a = mt.getJSONArray(k); for (int i = 0; i < a.length(); i++) { String ad = a.getJSONObject(i).optString("address"); if (!ad.isEmpty()) ips.add(ad); } }
+                    JSONArray conf = new JSONArray();
+                    for (String ip : ips) for (String m : new String[]{"/ip/dhcp-server/lease", "/ip/arp"})
+                        for (Map<String, String> x : q(r, m, "address=" + ip)) if (!M.equalsIgnoreCase(x.getOrDefault("mac-address", M))) { x.put("_src", m.contains("lease") ? "DHCP" : "ARP"); conf.put(new JSONObject(x)); }
+                    mt.put("conflicts", conf);
+                }
+                mt.put("ok", true);
+            } catch (Exception e) { mt.put("ok", false).put("err", e.getMessage()); }
+        }
+        o.put("mt", mt);
+        if (mac == null) {
+            o.put("error", mtOn ? "مالقيتش العميل ده على المايكروتك. اكتب الماك بتاعه." : "اكتب الماك بتاع العميل، أو شغّل «المايكروتك» من الإعدادات عشان أدوّر بالـ IP أو اسم الكارت.");
+            return o;
+        }
+        o.put("mac", mac);
+        // دوّر عليه في كل الأكسسات اللي البرنامج يعرفها
+        List<String> targets = new ArrayList<>();
+        JSONArray aps = cfg.optJSONArray("aps");
+        for (int i = 0; aps != null && i < aps.length(); i++) targets.add(aps.optString(i));
+        o.put("apsKnown", targets.size());
+        final String fm = mac;
+        final String cmd = "echo \"H $(uci -q get system.@system[0].hostname || cat /proc/sys/kernel/hostname)\"\n" +
+            "for i in $(iw dev 2>/dev/null | awk '$1==\"Interface\"{print $2}'); do iw dev $i station get " + fm + " 2>/dev/null | awk -v i=$i '/inactive time:/{a=$3} /^[ \\t]*signal:/{s=$2} /connected time:/{c=$3} END{if(a!=\"\")print \"S\",i,a,s,c}'; done\ntrue";
+        progress("بدوّر على العميل في الأكسسات", targets.size());
+        List<Res> res = pool(targets, 40, ip -> ssh(ip, cmd, null, 12000));
+        JSONArray found = new JSONArray();
+        int fail = 0;
+        for (Res r : res) {
+            if (r == null || !r.ok) { fail++; continue; }
+            String host = "";
+            for (String line : r.out.split("\n")) {
+                String[] p = line.trim().split("\\s+");
+                if (p.length > 0 && "H".equals(p[0])) host = line.trim().substring(1).trim();
+                if (p.length >= 5 && "S".equals(p[0]))
+                    found.put(new JSONObject().put("ip", r.ip).put("host", host).put("iface", p[1]).put("inactive", parseInt(p[2])).put("signal", p[3]).put("connected", parseInt(p[4])));
+            }
+        }
+        o.put("aps", found).put("apsFailed", fail);
+        return o;
+    }
+
+    private JSONObject mtFix(String mac, JSONArray ipsA) throws Exception {
+        JSONArray log = new JSONArray();
+        if (mac == null || !MAC.matcher(mac).matches()) return new JSONObject().put("error", "ماك غلط");
+        String M = mac.toUpperCase();
+        progress("بنضّف العميل من المايكروتك", 1);
+        try (Ros r = mtOpen()) {
+            String[][] menus = {{"/ip/hotspot/active", "خرّجته من الهوتسبوت (Active)", "0"}, {"/ip/hotspot/host", "مسحت الـ Host", "0"},
+                                {"/ip/hotspot/cookie", "مسحت الكوكي", "0"}, {"/ip/dhcp-server/lease", "مسحت الـ DHCP Lease", "1"}, {"/ip/arp", "مسحت الـ ARP", "1"}};
+            for (String[] m : menus) {
+                for (Map<String, String> x : q(r, m[0], "mac-address=" + M)) {
+                    if ("1".equals(m[2]) && !"true".equals(x.get("dynamic"))) { log.put("• سبت " + m[0].substring(4) + " الثابت " + x.getOrDefault("address", "") + " زي ما هو"); continue; }
+                    try { r.run(m[0] + "/remove", "=.id=" + x.get(".id")); log.put("✓ " + m[1] + " " + x.getOrDefault("address", x.getOrDefault("user", ""))); }
+                    catch (Exception e) { log.put("✗ " + m[1] + ": " + e.getMessage()); }
+                }
+            }
+        }
+        if (log.length() == 0) log.put("مفيش حاجة كانت محتاجة تتمسح على المايكروتك.");
+        return new JSONObject().put("log", log);
     }
 
     static void addClient(JSONArray a, Map<String, String[]> m) throws Exception {

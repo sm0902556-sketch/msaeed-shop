@@ -35,7 +35,7 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     // زوّد الرقم ده (وفي ghost/engine-version.txt) لما تغيّر في كود الجافا
-    static final int ENGINE = 10;
+    static final int ENGINE = 11;
     static final String UPD = "https://github.com/sm0902556-sketch/msaeed-shop/releases/download/ghost-latest/";
 
     private WebView web;
@@ -80,6 +80,9 @@ public class MainActivity extends Activity {
         web.addJavascriptInterface(new Bridge(), "Android");
         setContentView(web);
         web.loadUrl("https://appassets.androidplatform.net/assets/index.html");
+        // إذن الإشعارات (أندرويد 13+) عشان إشعار الشغل في الخلفية
+        if (android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED)
+            requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 1);
     }
 
     private File webFile() { return new File(getFilesDir(), "index.html"); }
@@ -171,6 +174,10 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (web.canGoBack()) web.goBack(); else super.onBackPressed();
+        // زرار الرجوع بيخرّجك من غير ما يقفل البرنامج، فالفحص يكمّل
+        if (web.canGoBack()) web.goBack(); else moveTaskToBack(true);
     }
+
+    @Override
+    protected void onPause() { super.onPause(); web.resumeTimers(); } // العدّاد يكمّل في الخلفية
 }

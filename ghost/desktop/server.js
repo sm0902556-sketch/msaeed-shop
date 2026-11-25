@@ -306,6 +306,75 @@ function delayedCmd(d, act) {
          `else (trap '' HUP INT TERM; ${job}) >/dev/null 2>&1 </dev/null & fi; echo DONE_OK`;
 }
 
+// ---------- تشخيص عميل ----------
+async function rq(r, menu, filter) { try { return await r.run(menu + '/print', '?' + filter); } catch (e) { return []; } }
+async function clientDiag(query) {
+  query = String(query || '').trim();
+  const o = { q: query }; let mac = null;
+  const qm = query.toLowerCase().replace(/[^0-9a-f]/g, '');
+  if (qm.length === 12 && /^[0-9a-f:\-. ]+$/i.test(query)) mac = qm.match(/../g).join(':');
+  const mtOn = !!(cfg.mt_on && cfg.mt_ip); o.mtOn = mtOn; const mt = {};
+  if (mtOn) {
+    progress = { busy: true, text: 'بسأل المايكروتك عن العميل', done: 0, total: 1 };
+    let r;
+    try {
+      r = await mtOpen();
+      if (!mac) {
+        let hit = [];
+        if (reIp.test(query)) { for (const m of ['/ip/hotspot/active', '/ip/hotspot/host', '/ip/dhcp-server/lease', '/ip/arp']) { hit = await rq(r, m, 'address=' + query); if (hit.length) break; } }
+        else { hit = await rq(r, '/ip/hotspot/active', 'user=' + query); if (!hit.length) hit = await rq(r, '/ip/hotspot/cookie', 'user=' + query); }
+        const h = hit.find(x => x['mac-address']); if (h) mac = h['mac-address'].toLowerCase();
+      }
+      if (mac) {
+        const M = mac.toUpperCase();
+        mt.leases = await rq(r, '/ip/dhcp-server/lease', 'mac-address=' + M);
+        mt.hosts = await rq(r, '/ip/hotspot/host', 'mac-address=' + M);
+        mt.active = await rq(r, '/ip/hotspot/active', 'mac-address=' + M);
+        mt.cookies = await rq(r, '/ip/hotspot/cookie', 'mac-address=' + M);
+        mt.arp = await rq(r, '/ip/arp', 'mac-address=' + M);
+        const ips = new Set([...mt.leases, ...mt.hosts, ...mt.active, ...mt.arp].map(x => x.address).filter(Boolean));
+        mt.conflicts = [];
+        for (const ip of ips) for (const m of ['/ip/dhcp-server/lease', '/ip/arp'])
+          for (const x of await rq(r, m, 'address=' + ip)) if ((x['mac-address'] || M).toUpperCase() !== M) mt.conflicts.push({ ...x, _src: m.includes('lease') ? 'DHCP' : 'ARP' });
+      }
+      mt.ok = true;
+    } catch (e) { mt.ok = false; mt.err = e.message; } finally { if (r) r.close(); }
+  }
+  o.mt = mt;
+  if (!mac) { o.error = mtOn ? 'مالقيتش العميل ده على المايكروتك. اكتب الماك بتاعه.' : 'اكتب الماك بتاع العميل، أو شغّل «المايكروتك» من الإعدادات عشان أدوّر بالـ IP أو اسم الكارت.'; return o; }
+  o.mac = mac;
+  const targets = cfg.aps.slice(); o.apsKnown = targets.length;
+  const cmd = `echo "H $(uci -q get system.@system[0].hostname || cat /proc/sys/kernel/hostname)"
+for i in $(iw dev 2>/dev/null | awk '$1=="Interface"{print $2}'); do iw dev $i station get ${mac} 2>/dev/null | awk -v i=$i '/inactive time:/{a=$3} /^[ \\t]*signal:/{s=$2} /connected time:/{c=$3} END{if(a!="")print "S",i,a,s,c}'; done
+true`;
+  progress = { busy: true, text: 'بدوّر على العميل في الأكسسات', done: 0, total: targets.length };
+  const res = await pool(targets, 40, ip => sshRun(ip, cmd, null, 12000));
+  o.aps = []; o.apsFailed = 0;
+  for (const r of res) {
+    if (!r || !r.ok) { o.apsFailed++; continue; }
+    let host = '';
+    for (const line of r.out.split('\n')) { const p = line.trim().split(/\s+/);
+      if (p[0] === 'H') host = line.trim().slice(1).trim();
+      if (p[0] === 'S' && p.length >= 5) o.aps.push({ ip: r.ip, host, iface: p[1], inactive: +p[2] || 0, signal: p[3], connected: +p[4] || 0 }); }
+  }
+  return o;
+}
+async function mtFix(mac) {
+  if (!/^[0-9a-f]{2}(:[0-9a-f]{2}){5}$/.test(mac || '')) return { error: 'ماك غلط' };
+  const M = mac.toUpperCase(), log = [];
+  progress = { busy: true, text: 'بنضّف العميل من المايكروتك', done: 0, total: 1 };
+  const r = await mtOpen();
+  try {
+    for (const [m, t, dynOnly] of [['/ip/hotspot/active', 'خرّجته من الهوتسبوت (Active)', 0], ['/ip/hotspot/host', 'مسحت الـ Host', 0], ['/ip/hotspot/cookie', 'مسحت الكوكي', 0], ['/ip/dhcp-server/lease', 'مسحت الـ DHCP Lease', 1], ['/ip/arp', 'مسحت الـ ARP', 1]])
+      for (const x of await rq(r, m, 'mac-address=' + M)) {
+        if (dynOnly && x.dynamic !== 'true') { log.push(`• سبت ${m.slice(4)} الثابت ${x.address || ''} زي ما هو`); continue; }
+        try { await r.run(m + '/remove', '=.id=' + x['.id']); log.push(`✓ ${t} ${x.address || x.user || ''}`); } catch (e) { log.push(`✗ ${t}: ${e.message}`); }
+      }
+  } finally { r.close(); }
+  if (!log.length) log.push('مفيش حاجة كانت محتاجة تتمسح على المايكروتك.');
+  return { log };
+}
+
 // ---------- اختبار أكسس خطوة بخطوة ----------
 function banner(ip, port) {
   return new Promise(res => {
@@ -453,6 +522,8 @@ const server = http.createServer(async (req, res) => {
     case '/api/discover': return guard(res, async () => { const f = await discover(ranges); return { found: f.length, total: cfg.aps.length }; });
     case '/api/scan': return guard(res, () => scan(ranges, !!b.rediscover));
     case '/api/kick': return guard(res, async () => ({ results: await kick(b.items) }));
+    case '/api/client_diag': return guard(res, () => clientDiag(b.q));
+    case '/api/mt_fix': return guard(res, () => mtFix(b.mac));
     case '/api/install': return guard(res, async () => ({ results: await install(ranges, !!b.remove) }));
   }
   send(res, { error: 'not found' }, 404);
