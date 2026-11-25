@@ -5,6 +5,7 @@ set -e
 cd "$(dirname "$0")"
 CODE=${VERSION_CODE:-0}
 NODE_WIN=${NODE_WIN:-22.23.5}
+node -e "const fs=require('fs'),d='../app/src/main/assets/fb/',o={};for(const f of fs.readdirSync(d))o[f]=fs.readFileSync(d+f,'utf8');fs.writeFileSync('fbassets.js','module.exports='+JSON.stringify(o))"
 npx esbuild server.js --bundle --platform=node --target=node22 \
   --loader:.html=text --loader:.sh=text --external:cpu-features '--external:*.node' \
   --define:__APP_VERSION__="\"1.$CODE\"" --define:__APP_CODE__=$CODE \

@@ -4,26 +4,31 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#14110a">
+<script>/* الثيم قبل ما الصفحة تترسم */
+const THEMES={gold:["دهبي","#e0b84c","#f5d77e","#8a6610"],blue:["أزرق","#4c9be0","#8cc4f5","#1f5f9e"],green:["أخضر","#4cc27a","#8ee6ad","#1d7a45"],purple:["بنفسجي","#a77ce0","#cfb2f5","#6a3fa8"],red:["أحمر","#e0605c","#f59c98","#a8302c"],teal:["فيروزي","#3cc8c0","#8ee8e2","#157a74"]};
+function applyTheme(){let t="gold",m="dark";try{t=localStorage.getItem("theme")||t;m=localStorage.getItem("mode")||m}catch(e){}const T=THEMES[t]||THEMES.gold,r=document.documentElement;r.dataset.mode=m;r.style.setProperty("--gold",T[1]);r.style.setProperty("--gold2",m==="light"?T[3]:T[2]);const mc=document.querySelector("meta[name=theme-color]");if(mc)mc.content=m==="light"?"#ffffff":"#14110a"}
+applyTheme();
+</script>
 <title>فحص عميل معلق - المبرمج محمد سعيد</title>
 <!-- صياد الشبح -->
 <style>
-:root{--bg:#0f0d08;--card:#1a1710;--line:#332c1a;--gold:#e0b84c;--gold2:#f5d77e;--txt:#f1ead8;--mut:#a89c80;--bad:#ef5350;--warn:#ffb74d;--ok:#66bb6a;--info:#64b5f6}
+:root{--bg:#0f0d08;--card:#1a1710;--line:#332c1a;--gold:#e0b84c;--gold2:#f5d77e;--txt:#f1ead8;--mut:#a89c80;--in:#0c0a06;--nav:#14110a;--hd:#2a2210;--soft:#3a2f12;--on:#1a1408;--bad:#ef5350;--warn:#ffb74d;--ok:#66bb6a;--info:#64b5f6}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--txt);font-family:"Segoe UI",Tahoma,"Noto Kufi Arabic",sans-serif;font-size:15px}
-header{background:linear-gradient(135deg,#2a2210,#14110a);border-bottom:2px solid var(--gold);padding:14px 16px;display:flex;align-items:center;gap:12px}
-.logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--gold2),#a8801f);display:grid;place-items:center;color:#1a1408;font-weight:900;font-size:20px}
+header{background:linear-gradient(135deg,var(--hd),var(--nav));border-bottom:2px solid var(--gold);padding:14px 16px;display:flex;align-items:center;gap:12px}
+.logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--gold2),#a8801f);display:grid;place-items:center;color:var(--on);font-weight:900;font-size:20px}
 header h1{margin:0;font-size:18px;color:var(--gold2)} header small{color:var(--mut)}
-nav{display:flex;gap:6px;padding:10px 12px;background:#14110a;position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line)}
+nav{display:flex;gap:6px;padding:10px 12px;background:var(--nav);position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line)}
 nav button{flex:1;background:transparent;border:1px solid var(--line);color:var(--mut);padding:10px 4px;border-radius:10px;font:inherit;cursor:pointer}
-nav button.on{background:var(--gold);color:#1a1408;border-color:var(--gold);font-weight:700}
+nav button.on{background:var(--gold);color:var(--on);border-color:var(--gold);font-weight:700}
 main{max-width:980px;margin:0 auto;padding:14px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
 .card h3{margin:0 0 10px;color:var(--gold2);font-size:16px}
-input,textarea{width:100%;background:#0c0a06;border:1px solid var(--line);color:var(--txt);padding:12px;border-radius:10px;font:inherit;direction:ltr;text-align:left}
+input,textarea{width:100%;background:var(--in);border:1px solid var(--line);color:var(--txt);padding:12px;border-radius:10px;font:inherit;direction:ltr;text-align:left}
 input:focus,textarea:focus{outline:none;border-color:var(--gold)}
 label{display:block;margin:10px 0 5px;color:var(--mut);font-size:13px}
 .row{display:flex;gap:8px}.row>*{flex:1}
-.btn{background:var(--gold);color:#1a1408;border:0;padding:12px 16px;border-radius:10px;font:inherit;font-weight:700;cursor:pointer}
+.btn{background:var(--gold);color:var(--on);border:0;padding:12px 16px;border-radius:10px;font:inherit;font-weight:700;cursor:pointer}
 .btn:disabled{opacity:.45}
 .btn.big{width:100%;padding:15px;font-size:17px;background:linear-gradient(135deg,var(--gold2),var(--gold))}
 .btn.ghost{background:transparent;color:var(--gold);border:1px solid var(--gold)}
@@ -31,20 +36,20 @@ label{display:block;margin:10px 0 5px;color:var(--mut);font-size:13px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{border:1px solid var(--line);border-radius:20px;padding:7px 12px;cursor:pointer;direction:ltr;font-size:13px;user-select:none;color:var(--mut)}
 .chip .x{margin-inline-start:8px;opacity:.6;font-weight:700;padding:0 2px}
-.chip.on{background:var(--gold);border-color:var(--gold);color:#1a1408;font-weight:700}
+.chip.on{background:var(--gold);border-color:var(--gold);color:var(--on);font-weight:700}
 .mini{display:flex;gap:8px;margin-top:8px;font-size:13px}.mini a{color:var(--gold);cursor:pointer}
-.diag{padding:10px 12px;border-radius:10px;margin:8px 0;border-right:4px solid;background:#0c0a06;line-height:1.7}
+.diag{padding:10px 12px;border-radius:10px;margin:8px 0;border-right:4px solid;background:var(--in);line-height:1.7}
 .diag.bad{border-color:var(--bad)}.diag.warn{border-color:var(--warn)}.diag.ok{border-color:var(--ok)}.diag.info{border-color:var(--info)}
 .stats{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
-.stat{flex:1;min-width:90px;background:#0c0a06;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;font-size:13px;color:var(--mut)}
+.stat{flex:1;min-width:90px;background:var(--in);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;font-size:13px;color:var(--mut)}
 .stat b{display:block;font-size:22px;color:var(--gold2)}
 .stat.red b{color:var(--bad)}
-.gh{display:flex;gap:10px;align-items:flex-start;background:#0c0a06;border:1px solid var(--line);border-right:4px solid var(--bad);border-radius:10px;padding:10px;margin:8px 0}
+.gh{display:flex;gap:10px;align-items:flex-start;background:var(--in);border:1px solid var(--line);border-right:4px solid var(--bad);border-radius:10px;padding:10px;margin:8px 0}
 .gh input{width:22px;height:22px;accent-color:var(--gold);flex:0 0 auto;margin-top:2px}
 .gh .m{direction:ltr;text-align:right;font-family:Consolas,monospace;color:var(--gold2)}
 .gh .d{font-size:13px;color:var(--mut);line-height:1.7}
 .ltr{direction:ltr;unicode-bidi:embed;font-family:Consolas,monospace}
-details{border:1px solid var(--line);border-radius:10px;margin:8px 0;background:#0c0a06}
+details{border:1px solid var(--line);border-radius:10px;margin:8px 0;background:var(--in)}
 summary{padding:10px 12px;cursor:pointer;color:var(--gold2)}
 .tw{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -52,17 +57,24 @@ th,td{padding:7px 8px;border-top:1px solid var(--line);text-align:left;direction
 th{color:var(--mut)}
 .okc{color:var(--ok)}.badc{color:var(--bad)}
 .hide{display:none}
-.prog{background:#0c0a06;border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:12px}
-.bar{height:8px;background:#2a2414;border-radius:8px;overflow:hidden;margin-top:8px}.bar i{display:block;height:100%;background:var(--gold);width:0;transition:width .3s}
+.prog{background:var(--in);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:12px}
+.bar{height:8px;background:var(--soft);border-radius:8px;overflow:hidden;margin-top:8px}.bar i{display:block;height:100%;background:var(--gold);width:0;transition:width .3s}
 .spin{display:inline-block;width:16px;height:16px;border:2px solid var(--gold);border-top-color:transparent;border-radius:50%;animation:s .8s linear infinite;vertical-align:middle}
 @keyframes s{to{transform:rotate(360deg)}}
 footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{color:var(--gold2);text-decoration:none}
-#updBar{display:none;align-items:center;gap:10px;justify-content:space-between;background:linear-gradient(135deg,#3a2f12,#2a2210);border-bottom:1px solid var(--gold);padding:10px 14px;color:var(--gold2);font-size:14px}
-#updBar button{background:var(--gold);color:#1a1408;border:0;border-radius:8px;padding:8px 12px;font:inherit;font-weight:700}
+#updBar{display:none;align-items:center;gap:10px;justify-content:space-between;background:linear-gradient(135deg,var(--soft),var(--hd));border-bottom:1px solid var(--gold);padding:10px 14px;color:var(--gold2);font-size:14px}
+#updBar button{background:var(--gold);color:var(--on);border:0;border-radius:8px;padding:8px 12px;font:inherit;font-weight:700}
 #refBtn{margin-inline-start:auto;background:transparent;border:1px solid var(--gold);color:var(--gold2);border-radius:12px;width:44px;height:44px;font-size:20px;cursor:pointer}
-#pullInd{position:fixed;top:0;left:50%;margin-left:-110px;width:220px;text-align:center;background:var(--gold);color:#1a1408;font-weight:700;padding:10px;border-radius:0 0 14px 14px;z-index:20;transform:translateY(-60px);opacity:0;transition:transform .15s,opacity .15s;pointer-events:none}
-.tag{display:inline-block;background:#3a2f12;color:var(--gold2);border-radius:20px;padding:2px 10px;font-size:12px;margin-inline-start:6px}
-#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--gold);color:#1a1408;padding:10px 18px;border-radius:10px;font-weight:700;display:none;z-index:9}
+#pullInd{position:fixed;top:0;left:50%;margin-left:-110px;width:220px;text-align:center;background:var(--gold);color:var(--on);font-weight:700;padding:10px;border-radius:0 0 14px 14px;z-index:20;transform:translateY(-60px);opacity:0;transition:transform .15s,opacity .15s;pointer-events:none}
+.tag{display:inline-block;background:var(--soft);color:var(--gold2);border-radius:20px;padding:2px 10px;font-size:12px;margin-inline-start:6px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--gold);color:var(--on);padding:10px 18px;border-radius:10px;font-weight:700;display:none;z-index:9}
+html[data-mode=light]{--bg:#f4f1ea;--card:#ffffff;--line:#e3dccb;--txt:#1f1a10;--mut:#6b6252;--in:#faf8f3;--nav:#ffffff;--hd:#fff6dc;--soft:#f1e6c8}
+html[data-mode=light] header{background:linear-gradient(135deg,var(--hd),var(--card))}
+html[data-mode=light] .btn.big{background:var(--gold)}
+html[data-mode=light] .btn.big.red{background:var(--bad)}
+.thm{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:20px;padding:7px 12px;cursor:pointer;font-size:13px;color:var(--txt);margin:3px}
+.thm i{width:16px;height:16px;border-radius:50%;display:inline-block}
+.thm.on{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold) inset}
 </style>
 </head>
 <body>
@@ -129,6 +141,11 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
 
 <section id="t-set" class="hide">
   <div class="card" id="usersCard"></div>
+  <div class="card"><h3>الشكل</h3>
+    <div style="font-size:13px;color:var(--mut);margin-bottom:6px">اللون</div><div id="thmBox"></div>
+    <div style="font-size:13px;color:var(--mut);margin:10px 0 6px">الوضع</div>
+    <div><span class="thm" data-m="dark" onclick="setMode('dark')">🌙 داكن</span><span class="thm" data-m="light" onclick="setMode('light')">☀️ فاتح</span></div>
+  </div>
   <div class="card">
     <h3>التحديث</h3>
     <div style="font-size:14px">الإصدار اللي عندك: <b id="curVer" class="ltr"></b></div>
@@ -171,6 +188,9 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
 </div>
 <div id="toast"></div>
 
+<script src="fb/firebase-app-compat.js"></script>
+<script src="fb/firebase-auth-compat.js"></script>
+<script src="fb/firebase-firestore-compat.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -206,22 +226,65 @@ setInterval(async()=>{if(!busyNow()&&!(await updGate()))return},30*60e3);
 
 // ---------- القفل: اسم المستخدم ثابت M saeed ----------
 async function rawApi(p,b){const r=await fetch('/api/'+p,{method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});return r.json().catch(()=>({error:'البرنامج مش بيرد'}))}
-const B=(o)=>o;
+// ---------- الدخول على Firebase زي برنامج الإخوة (منفصل في ghost/members) ----------
+const FBC={apiKey:"AIzaSyAS35dHxy4_dy45BWr586qqLbR72Q_cbP4",authDomain:"elekhwa-shop.firebaseapp.com",projectId:"elekhwa-shop",storageBucket:"elekhwa-shop.firebasestorage.app",messagingSenderId:"329491053695",appId:"1:329491053695:web:cdfb29a7c7164ddcd1534a"};
+const GDOM='@ghost.msaeed.app',OWNER_NAME='M saeed',MREF='ghost/members';
+const ukey=u=>String(u||'').trim().toLowerCase().replace(/\s+/g,'');
+const okUser=u=>/^[a-z0-9_.-]{3,20}$/.test(ukey(u));
+let fbA=null,fbAuth=null,fdb=null,MEM=null,CUR=null,memUnsub=null;
+function fbInit(){if(fbA)return true;if(!window.firebase)return false;try{fbA=firebase.initializeApp(FBC,'ghost');fbAuth=fbA.auth();fdb=fbA.firestore();fdb.enablePersistence().catch(()=>{})}catch(e){return false}return true}
+const waitUser=()=>new Promise(r=>{const un=fbAuth.onAuthStateChanged(u=>{un();r(u)})});
+async function memGet(){try{const d=await fdb.doc(MREF).get();return d.exists?d.data():null}catch(e){try{const d=await fdb.doc(MREF).get({source:'cache'});return d.exists?d.data():undefined}catch(x){return undefined}}}
+const nameOf=e=>{const n=(MEM&&MEM.names)||{};for(const k in n)if(n[k]===e)return k;return String(e||'').replace(GDOM,'')};
+const emailOf=u=>{const n=(MEM&&MEM.names)||{};for(const k in n)if(ukey(k)===ukey(u))return n[k];return ukey(u)+GDOM};
+function fbErr(e){const c=(e&&e.code)||'';if(/wrong-password|user-not-found|invalid-credential|invalid-login|invalid-email/.test(c))return 'اسم المستخدم أو الباسورد غلط';
+  if(/too-many-requests/.test(c))return 'محاولات كتير غلط، استنى شوية وجرّب تاني';if(/network/.test(c))return 'مفيش نت. أول دخول لازم الموبايل يكون متوصل بالنت';
+  if(/weak-password/.test(c))return 'الباسورد لازم يبقى 6 حروف أو أرقام على الأقل';if(/email-already-in-use/.test(c))return 'الاسم ده مستخدم قبل كده';if(/permission/.test(c))return 'مفيش صلاحية (اتأكد إن قواعد Firebase اتحدّثت)';return (e&&e.message)||'حصلت مشكلة'}
+async function openEngine(){if(NATIVE){try{Android.lockSet(true)}catch(e){}}else await rawApi('fb_open',{})}
+function memWatch(){if(memUnsub)memUnsub();memUnsub=fdb.doc(MREF).onSnapshot(d=>{if(!d.exists||!CUR)return;MEM=d.data();
+  if(!(MEM.users||[]).includes(CUR.email)){const off=(MEM.suspended||[]).includes(CUR.email);LK.logout().then(()=>showLock(off?'off':'locked'))}
+  else if(!$('t-set').classList.contains('hide'))usersRender()},()=>{})}
+async function memEdit(fn){const ref=fdb.doc(MREF);const m=(await ref.get({source:'server'})).data();const n={users:[...(m.users||[])],suspended:[...(m.suspended||[])],names:{...(m.names||{})}};fn(n);await ref.update(n);MEM={...m,...n}}
+async function mkAccount(u,pw,fresh){const sa=(firebase.apps.find(a=>a.name==='ghost-sec')||firebase.initializeApp(FBC,'ghost-sec')).auth();
+  let email=fresh?ukey(u)+'.r'+Date.now().toString(36)+GDOM:ukey(u)+GDOM,c;
+  try{c=await sa.createUserWithEmailAndPassword(email,pw)}catch(e){if(e.code!=='auth/email-already-in-use'||fresh)throw e;email=ukey(u)+'.r'+Date.now().toString(36)+GDOM;c=await sa.createUserWithEmailAndPassword(email,pw)}
+  await sa.signOut();return c.user.email}
+const isOwner=()=>!!(CUR&&MEM&&MEM.owner===CUR.email);
 const LK={
-  state:async()=>NATIVE?(Android.lockState?Android.lockState():'open'):(await rawApi('lock_state')).state,
-  setup:async pw=>NATIVE?Android.lockSetup(pw):((await rawApi('lock_setup',{pw})).error||''),
-  login:async(u,pw)=>NATIVE?Android.lockLogin(u,pw):((await rawApi('lock_login',{user:u,pw})).error||''),
-  who:async()=>NATIVE?JSON.parse(Android.lockWho()):await rawApi('lock_who'),
-  users:async()=>NATIVE?JSON.parse(Android.lockUsers()):((await rawApi('lock_users')).users||[]),
-  add:async(n,pw)=>NATIVE?Android.lockAdd(n,pw):((await rawApi('lock_add',{name:n,pw})).error||''),
-  off:async(n,off)=>NATIVE?Android.lockOff(n,off):((await rawApi('lock_off',{name:n,off})).error||''),
-  del:async n=>NATIVE?Android.lockDel(n):((await rawApi('lock_del',{name:n})).error||''),
-  pass:async(n,o,pw)=>NATIVE?Android.lockPass(n,o,pw):((await rawApi('lock_pass',{name:n,old:o,pw})).error||''),
-  logout:async()=>{if(NATIVE)Android.lockLogout();else await rawApi('lock_logout',{})}};
+  async state(){if(!fbInit())return 'nofb';const m=await memGet();if(m===undefined)return 'offline';if(m===null)return 'setup';MEM=m;
+    const u=await waitUser();if(!u)return 'locked';
+    if((m.users||[]).includes(u.email)){CUR=u;await openEngine();memWatch();return 'open'}
+    const off=(m.suspended||[]).includes(u.email);await fbAuth.signOut();return off?'off':'locked'},
+  async setup(pw){try{const email=ukey(OWNER_NAME)+GDOM;let c;try{c=await fbAuth.createUserWithEmailAndPassword(email,pw)}catch(e){if(e.code!=='auth/email-already-in-use')throw e;c=await fbAuth.signInWithEmailAndPassword(email,pw)}
+      MEM={owner:c.user.email,users:[c.user.email],names:{[OWNER_NAME]:c.user.email},suspended:[]};await fdb.doc(MREF).set(MEM);CUR=c.user;await openEngine();memWatch();return ''}catch(e){return fbErr(e)}},
+  async login(u,pw){try{if(!fbInit())return 'مقدرتش أحمّل الدخول، اتأكد من النت';const m=await memGet();if(m)MEM=m;
+      const c=await fbAuth.signInWithEmailAndPassword(emailOf(u),pw);const mm=(await memGet())||MEM||{};MEM=mm;
+      if((mm.suspended||[]).includes(c.user.email)){await fbAuth.signOut();return 'off'}
+      if(!(mm.users||[]).includes(c.user.email)){await fbAuth.signOut();return 'اسم المستخدم أو الباسورد غلط'}
+      CUR=c.user;await openEngine();memWatch();return ''}catch(e){return fbErr(e)}},
+  async who(){return {name:CUR?nameOf(CUR.email):'',owner:isOwner()}},
+  async users(){if(!isOwner())return [];const m=MEM||{};const all=[...(m.users||[]).map(e=>[e,0]),...(m.suspended||[]).map(e=>[e,1])];
+    return all.map(([e,off])=>({name:nameOf(e),owner:e===m.owner,off:!!off})).sort((a,b)=>b.owner-a.owner)},
+  async add(n,pw){if(!isOwner())return 'المدير بس اللي يقدر يضيف عملاء';n=String(n||'').trim();
+    if(!okUser(n))return 'اسم العميل إنجليزي أو أرقام من 3 لـ 20 حرف (من غير رموز)';
+    if(Object.keys(MEM.names||{}).some(k=>ukey(k)===ukey(n)))return 'الاسم ده موجود بالفعل';
+    try{const email=await mkAccount(n,pw,false);await memEdit(x=>{x.users.push(email);x.names[n]=email});return ''}catch(e){return fbErr(e)}},
+  async off(n,off){if(!isOwner())return 'المدير بس';const e=emailOf(n);if(e===MEM.owner)return 'مينفعش توقف حساب المدير';
+    try{await memEdit(x=>{x.users=x.users.filter(y=>y!==e);x.suspended=x.suspended.filter(y=>y!==e);(off?x.suspended:x.users).push(e)});return ''}catch(err){return fbErr(err)}},
+  async del(n){if(!isOwner())return 'المدير بس';const e=emailOf(n);if(e===MEM.owner)return 'مينفعش تمسح حساب المدير';
+    try{await memEdit(x=>{x.users=x.users.filter(y=>y!==e);x.suspended=x.suspended.filter(y=>y!==e);for(const k in x.names)if(x.names[k]===e)delete x.names[k]});return ''}catch(err){return fbErr(err)}},
+  async pass(n,o,pw){try{const e=emailOf(n);
+      if(CUR&&e===CUR.email){await CUR.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(CUR.email,o));await CUR.updatePassword(pw);return ''}
+      if(!isOwner())return 'مينفعش تغيّر باسورد حد تاني';
+      const ne=await mkAccount(n,pw,true);await memEdit(x=>{const off=x.suspended.includes(e);x.users=x.users.filter(y=>y!==e);x.suspended=x.suspended.filter(y=>y!==e);(off?x.suspended:x.users).push(ne);for(const k in x.names)if(x.names[k]===e)x.names[k]=ne});return ''}
+    catch(err){return /wrong-password|invalid-credential|invalid-login/.test(err.code||'')?'الباسورد الحالي غلط':fbErr(err)}},
+  async logout(){try{if(memUnsub)memUnsub();memUnsub=null;CUR=null;await fbAuth.signOut()}catch(e){}if(NATIVE){try{Android.lockLogout()}catch(e){}}else await rawApi('lock_logout',{})}};
 let LKMODE='locked';
-function showLock(st){LKMODE=st;$('app').classList.add('hide');$('lockBox').classList.remove('hide');$('lkErr').innerHTML='';$('lkPw').value='';$('lkPw2').value='';
+function showLock(st){LKMODE=st==='setup'?'setup':'locked';$('app').classList.add('hide');$('lockBox').classList.remove('hide');$('lkErr').innerHTML='';$('lkPw').value='';$('lkPw2').value='';
   const setup=st==='setup';$('lkTitle').textContent=setup?'أول تشغيل للبرنامج':'تسجيل الدخول';
-  $('lkNote').textContent=setup?'اعمل حساب المدير. الحساب ده هو اللي هيضيف العملاء بعد كده.':'ادخل باسمك والباسورد بتاعك.';
+  $('lkNote').textContent=setup?'اعمل حساب المدير. الحساب ده هو اللي هيضيف العملاء بعد كده. (الباسورد 6 حروف أو أرقام على الأقل)':'ادخل باسمك والباسورد بتاعك.';
+  if(st==='off')$('lkErr').innerHTML='<div class="diag bad">⛔ الحساب ده موقوف من المدير. كلّم المبرمج محمد سعيد على واتساب 01123840671.</div>';
+  if(st==='offline'||st==='nofb')$('lkErr').innerHTML='<div class="diag warn">مفيش نت. أول دخول لازم الموبايل يكون متوصل بالنت.</div>';
   $('lkUser').readOnly=setup;$('lkUser').style.opacity=setup?.8:1;
   let last='';try{last=localStorage.getItem('lastUser')||''}catch(e){}$('lkUser').value=setup?'M saeed':(last||'M saeed');
   $('lkPw2Box').classList.toggle('hide',!setup);$('lkBtn').textContent=setup?'إنشاء حساب المدير':'دخول';setTimeout(()=>$('lkPw').focus(),100)}
@@ -241,7 +304,7 @@ async function usersRender(){const box=$('usersCard');if(!box)return;let me={};t
      ${u.owner?'':`<div class="row" style="margin-top:8px">${u.off?`<button class="btn" style="padding:7px;font-size:13px" onclick="uOff('${esc(u.name)}',false)">✅ تشغيل</button>`:`<button class="btn red" style="padding:7px;font-size:13px" onclick="uOff('${esc(u.name)}',true)">⛔ إيقاف</button>`}
        <button class="btn ghost" style="padding:7px;font-size:13px" onclick="uPass('${esc(u.name)}')">🔑 باسورد</button><button class="btn ghost" style="padding:7px;font-size:13px" onclick="uDel('${esc(u.name)}')">مسح</button></div>`}</div>`).join('')+
      `<button class="btn big" style="margin-top:12px" onclick="uAddForm()">+ مستخدم جديد</button>
-     <div id="uAdd" class="hide" style="margin-top:10px"><label>اسم العميل (إنجليزي أو عربي)</label><input id="uN" autocapitalize="off"><label>الباسورد بتاعه</label><input id="uP" type="password">
+     <div id="uAdd" class="hide" style="margin-top:10px"><label>اسم العميل (إنجليزي أو أرقام، من غير مسافات)</label><input id="uN" autocapitalize="off" placeholder="ahmed" style="direction:ltr;text-align:left"><div style="font-size:12px;color:var(--mut)">الباسورد 6 حروف أو أرقام على الأقل</div><label>الباسورد بتاعه</label><input id="uP" type="password">
        <div style="height:8px"></div><button class="btn" onclick="uAdd()">إضافة العميل</button></div>`:'')+
    `<div class="row" style="margin-top:10px"><button class="btn ghost" style="color:var(--txt);border-color:var(--line)" onclick="$('chPw').classList.toggle('hide')">تغيير الباسورد بتاعي</button>
       <button class="btn ghost" style="color:var(--bad);border-color:var(--line)" onclick="lkOut()">تسجيل خروج</button></div>
@@ -508,6 +571,11 @@ async function cdMt(btn){if(btn)btn.disabled=true;const r=await api('mt_fix',{ma
   $('cdLog').insertAdjacentHTML('beforeend',r.error?`<div class="diag bad">⛔ ${esc(r.error)}</div>`:r.log.map(l=>`<div class="diag ${l[0]==='✗'?'bad':'ok'}">${esc(l)}</div>`).join('')+'<div class="diag info">خلي العميل يقفل الواي فاي ويفتحه تاني، وصفحة الدخول هتظهرله.</div>')}
 async function cdFix(){if(!confirm('هنفّذ الحل على العميل '+CD.mac+'. أكمل؟'))return;$('cdFix').disabled=true;
   if(CD._stale.length)await cdKick();if(CD.mtOn&&CD.mt.ok&&CD._needMt)await cdMt();$('cdFix').textContent='✅ اتنفّذ';}
+function themeUI(){let t='gold',m='dark';try{t=localStorage.getItem('theme')||t;m=localStorage.getItem('mode')||m}catch(e){}
+  $('thmBox').innerHTML=Object.entries(THEMES).map(([k,v])=>`<span class="thm ${k===t?'on':''}" onclick="setTheme('${k}')"><i style="background:${v[1]}"></i>${v[0]}</span>`).join('');
+  document.querySelectorAll('.thm[data-m]').forEach(e=>e.classList.toggle('on',e.dataset.m===m))}
+function setTheme(k){try{localStorage.setItem('theme',k)}catch(e){}applyTheme();themeUI()}
+function setMode(m){try{localStorage.setItem('mode',m)}catch(e){}applyTheme();themeUI()}
 function toggleAll(){const box=$('allBox');if(box.innerHTML){box.innerHTML='';return}
   const gh=new Set(LAST.ghosts.map(g=>g.mac+'@'+g.ip));const by={};
   for(const x of LAST.all)(by[x.ip]=by[x.ip]||[]).push(x);
@@ -610,7 +678,7 @@ async function init(){
   if(NATIVE){document.querySelectorAll('.pcOnly').forEach(e=>e.remove());try{$('curVer').textContent=Android.appVersion()}catch(e){}showJustUpdated();setTimeout(()=>{try{const p=Android.takeBgScan&&Android.takeBgScan();if(p)window.__bgScan(p)}catch(e){}},800)}
   else{try{const v=await api('version');$('curVer').textContent=v.name}catch(e){}}
   $('verTxt').textContent='إصدار '+$('curVer').textContent+' —';
-  setTimeout(()=>checkUpd(false),2500);try{await loadCfg();$('app').classList.remove('hide');$('lockBox').classList.add('hide');usersRender()}catch(e){}}
+  setTimeout(()=>checkUpd(false),2500);try{await loadCfg();$('app').classList.remove('hide');$('lockBox').classList.add('hide');usersRender();themeUI()}catch(e){}}
 init();
 </script>
 </body>

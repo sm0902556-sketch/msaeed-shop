@@ -464,21 +464,13 @@ function body(req) {
   return new Promise(r => { let d = ''; req.on('data', c => { d += c; if (d.length > 1e6) req.destroy(); }); req.on('end', () => { try { r(JSON.parse(d || '{}')); } catch (e) { r({}); } }); });
 }
 const send = (res, obj, code = 200) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); };
-// ---------- المستخدمين (زي برنامج الإخوة): المدير M saeed بيضيف عملاء ----------
-// الباسوردات بتتحفظ بصمة PBKDF2 مش الباسورد نفسه
-const OWNER = 'M saeed';
-let lkFails = 0, lkBlocked = 0;
-const sessions = new Map();   // token -> name
+// ---------- الدخول على Firebase زي برنامج الإخوة (في الواجهة) ----------
+// السيرفر بيعرف بس إن فيه حد داخل، عشان مفيش أي عملية تشتغل من غير دخول
+const sessions = new Map();
 const tok = req => ((req.headers.cookie || '').match(/gh=([a-f0-9]+)/) || [])[1];
-const pwRec = (pw, off = false) => { const salt = crypto.randomBytes(16); return { salt: salt.toString('hex'), hash: crypto.pbkdf2Sync(String(pw), salt, 120000, 32, 'sha256').toString('hex'), off }; };
-const pwOk = (r, pw) => { if (!r || !r.hash) return false;
-  const h = crypto.pbkdf2Sync(String(pw || ''), Buffer.from(r.salt, 'hex'), 120000, 32, 'sha256'); const ref = Buffer.from(r.hash, 'hex');
-  return h.length === ref.length && crypto.timingSafeEqual(h, ref); };
-const users = () => (cfg.users ||= {});
-const who = req => { const n = sessions.get(tok(req)); const r = n && users()[n]; return r && !r.off ? n : null; };
-const authed = req => !!who(req);
-const badPw = pw => (!pw || String(pw).length < 4) ? 'الباسورد لازم يبقى 4 حروف أو أرقام على الأقل' : null;
-const newSession = (res, name) => { const t = crypto.randomBytes(16).toString('hex'); sessions.set(t, name); res.setHeader('Set-Cookie', `gh=${t}; Path=/; HttpOnly; SameSite=Strict`); };
+const authed = req => sessions.has(tok(req));
+const newSession = res => { const t = crypto.randomBytes(16).toString('hex'); sessions.set(t, 1); res.setHeader('Set-Cookie', `gh=${t}; Path=/; HttpOnly; SameSite=Strict`); };
+const FBJS = require('./fbassets.js');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 async function guard(res, fn) {
@@ -491,31 +483,13 @@ async function guard(res, fn) {
 const server = http.createServer(async (req, res) => {
   const u = req.url.split('?')[0];
   if (u === '/') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end(HTML); }
+  if (u.startsWith('/fb/') && FBJS[u.slice(4)]) { res.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'max-age=86400' }); return res.end(FBJS[u.slice(4)]); }
   // التحديث مسموح حتى قبل الدخول، عشان البرنامج مايشتغلش غير بآخر نسخة
   if (u === '/api/version') return send(res, { name: APP_VERSION, code: APP_CODE });
   if (u === '/api/upd_check') { try { return send(res, await updCheck()); } catch (e) { return send(res, { error: 'مفيش نت أو مقدرتش أوصل لسيرفر التحديث' }); } }
   if (u === '/api/upd_go') { try { return send(res, await updGo()); } catch (e) { return send(res, { error: e.message }); } }
   if (u === '/api/progress' && progress.text === 'بنزّل التحديث') return send(res, progress);
-  if (u === '/api/lock_state') return send(res, { state: !users()[OWNER] ? 'setup' : authed(req) ? 'open' : 'locked', owner: OWNER });
-  if (u === '/api/lock_setup') {
-    const b = await body(req);
-    if (users()[OWNER]) return send(res, { error: 'حساب المدير متعمل بالفعل' });
-    const e = badPw(b.pw); if (e) return send(res, { error: e });
-    users()[OWNER] = pwRec(b.pw); delete cfg.pin; delete cfg.lock; save(); newSession(res, OWNER); return send(res, { ok: true });
-  }
-  if (u === '/api/lock_login') {
-    const b = await body(req); const now = Date.now(); const name = String(b.user || '').trim();
-    if (now < lkBlocked) return send(res, { error: `محاولات كتير غلط، استنى ${Math.ceil((lkBlocked - now) / 1000)} ثانية` });
-    const r = users()[name];
-    if (!r || !pwOk(r, b.pw)) {
-      await sleep(800);
-      if (++lkFails >= 5) { lkFails = 0; lkBlocked = now + 60000; return send(res, { error: 'محاولات كتير غلط، البرنامج اتقفل دقيقة' }); }
-      return send(res, { error: 'اسم المستخدم أو الباسورد غلط' });
-    }
-    lkFails = 0;
-    if (r.off) return send(res, { error: 'off' });
-    newSession(res, name); return send(res, { ok: true });
-  }
+  if (u === '/api/fb_open') { newSession(res); return send(res, { ok: true }); }
   if (u === '/api/lock_logout') { sessions.delete(tok(req)); return send(res, { ok: true }); }
   if (!u.startsWith('/api/')) { res.writeHead(404); return res.end(); }
   if (!authed(req)) return send(res, { error: 'locked' }, 401);
@@ -523,35 +497,6 @@ const server = http.createServer(async (req, res) => {
   const ranges = Array.isArray(b.ranges) ? b.ranges.filter(okRange) : cfg.ranges;
   switch (u) {
     case '/api/progress': return send(res, progress);
-    case '/api/lock_who': { const n = who(req); return send(res, { name: n, owner: n === OWNER }); }
-    case '/api/lock_users': {
-      if (who(req) !== OWNER) return send(res, { users: [] });
-      return send(res, { users: [{ name: OWNER, owner: true, off: false }, ...Object.entries(users()).filter(([k]) => k !== OWNER).map(([k, v]) => ({ name: k, owner: false, off: !!v.off }))] });
-    }
-    case '/api/lock_add': {
-      if (who(req) !== OWNER) return send(res, { error: 'المدير بس اللي يقدر يضيف عملاء' });
-      const name = String(b.name || '').trim(); if (!name || name.length > 30) return send(res, { error: 'اكتب اسم العميل' });
-      if (users()[name]) return send(res, { error: 'الاسم ده موجود بالفعل' });
-      const e = badPw(b.pw); if (e) return send(res, { error: e });
-      users()[name] = pwRec(b.pw); save(); return send(res, { ok: true });
-    }
-    case '/api/lock_off': {
-      if (who(req) !== OWNER) return send(res, { error: 'المدير بس اللي يقدر يوقف عملاء' });
-      if (b.name === OWNER || !users()[b.name]) return send(res, { error: 'مينفعش' });
-      users()[b.name].off = !!b.off; save(); return send(res, { ok: true });
-    }
-    case '/api/lock_del': {
-      if (who(req) !== OWNER) return send(res, { error: 'المدير بس اللي يقدر يمسح عملاء' });
-      if (b.name === OWNER) return send(res, { error: 'مينفعش تمسح حساب المدير' });
-      delete users()[b.name]; save(); return send(res, { ok: true });
-    }
-    case '/api/lock_pass': {
-      const me = who(req), r = users()[b.name]; if (!r) return send(res, { error: 'المستخدم ده مش موجود' });
-      const self = b.name === me; if (!self && me !== OWNER) return send(res, { error: 'مينفعش تغيّر باسورد حد تاني' });
-      if (self && !pwOk(r, b.old)) { await sleep(800); return send(res, { error: 'الباسورد الحالي غلط' }); }
-      const e = badPw(b.pw); if (e) return send(res, { error: e });
-      users()[b.name] = pwRec(b.pw, !!r.off); save(); return send(res, { ok: true });
-    }
     case '/api/config':
       if (req.method === 'POST') {
         const n = b.config || {};

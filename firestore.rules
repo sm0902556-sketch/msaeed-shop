@@ -1,6 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{db}/documents {
+    // ===== برنامج محل الإخوة (زي ما هو بالظبط) =====
     function isMember() {
       return request.auth != null &&
         request.auth.token.email in get(/databases/$(db)/documents/meta/members).data.users;
@@ -18,7 +19,19 @@ service cloud.firestore {
       allow read, write: if isMember();
     }
     match /{coll}/{id} {
-      allow read, write: if coll != 'meta' && isMember();
+      allow read, write: if coll != 'meta' && coll != 'ghost' && isMember();
+    }
+
+    // ===== برنامج فحص عميل معلق (منفصل عن المحل) =====
+    // المدير M saeed بيضيف العملاء ويوقفهم؛ محدش غيره يقدر يعدّل القايمة
+    match /ghost/members {
+      allow get: if true;
+      allow create: if request.auth != null
+        && request.resource.data.owner == request.auth.token.email
+        && request.resource.data.users == [request.auth.token.email];
+      allow update: if request.auth != null
+        && resource.data.owner == request.auth.token.email
+        && request.resource.data.owner == resource.data.owner;
     }
   }
 }

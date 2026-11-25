@@ -35,7 +35,7 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     // زوّد الرقم ده (وفي ghost/engine-version.txt) لما تغيّر في كود الجافا
-    static final int ENGINE = 16;
+    static final int ENGINE = 17;
     static final String UPD = "https://github.com/sm0902556-sketch/msaeed-shop/releases/download/ghost-latest/";
 
     private WebView web;
@@ -183,17 +183,8 @@ public class MainActivity extends Activity {
             });
         }
 
-        // ---------- المستخدمين (المدير M saeed + العملاء) ----------
-        @JavascriptInterface public String lockState() { return Lock.state(MainActivity.this); }
-        @JavascriptInterface public String lockOwner() { return Lock.OWNER; }
-        @JavascriptInterface public String lockSetup(String pw) { try { return Lock.setup(MainActivity.this, pw); } catch (Exception e) { return "حصلت مشكلة"; } }
-        @JavascriptInterface public String lockLogin(String user, String pw) { try { return Lock.login(MainActivity.this, user, pw); } catch (Exception e) { return "حصلت مشكلة"; } }
-        @JavascriptInterface public String lockWho() { try { return Lock.whoami(MainActivity.this); } catch (Exception e) { return "{}"; } }
-        @JavascriptInterface public String lockUsers() { try { return Lock.list(MainActivity.this); } catch (Exception e) { return "[]"; } }
-        @JavascriptInterface public String lockAdd(String n, String pw) { try { return Lock.addUser(MainActivity.this, n, pw); } catch (Exception e) { return "حصلت مشكلة"; } }
-        @JavascriptInterface public String lockOff(String n, boolean off) { try { return Lock.setOff(MainActivity.this, n, off); } catch (Exception e) { return "حصلت مشكلة"; } }
-        @JavascriptInterface public String lockDel(String n) { try { return Lock.delUser(MainActivity.this, n); } catch (Exception e) { return "حصلت مشكلة"; } }
-        @JavascriptInterface public String lockPass(String n, String o, String pw) { try { return Lock.setPassword(MainActivity.this, n, o, pw); } catch (Exception e) { return "حصلت مشكلة"; } }
+        // ---------- الدخول (Firebase في الواجهة) ----------
+        @JavascriptInterface public void lockSet(boolean open) { Lock.set(open); }
         @JavascriptInterface public void lockLogout() { Lock.logout(); }
 
         @JavascriptInterface
