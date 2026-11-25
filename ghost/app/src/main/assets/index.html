@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14110a">
+<title>صياد الشبح - المبرمج محمد سعيد</title>
+<style>
+:root{--bg:#0f0d08;--card:#1a1710;--line:#332c1a;--gold:#e0b84c;--gold2:#f5d77e;--txt:#f1ead8;--mut:#a89c80;--bad:#ef5350;--warn:#ffb74d;--ok:#66bb6a;--info:#64b5f6}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:"Segoe UI",Tahoma,"Noto Kufi Arabic",sans-serif;font-size:15px}
+header{background:linear-gradient(135deg,#2a2210,#14110a);border-bottom:2px solid var(--gold);padding:14px 16px;display:flex;align-items:center;gap:12px}
+.logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--gold2),#a8801f);display:grid;place-items:center;color:#1a1408;font-weight:900;font-size:20px}
+header h1{margin:0;font-size:18px;color:var(--gold2)} header small{color:var(--mut)}
+nav{display:flex;gap:6px;padding:10px 12px;background:#14110a;position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line)}
+nav button{flex:1;background:transparent;border:1px solid var(--line);color:var(--mut);padding:10px 4px;border-radius:10px;font:inherit;cursor:pointer}
+nav button.on{background:var(--gold);color:#1a1408;border-color:var(--gold);font-weight:700}
+main{max-width:980px;margin:0 auto;padding:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+.card h3{margin:0 0 10px;color:var(--gold2);font-size:16px}
+input,textarea{width:100%;background:#0c0a06;border:1px solid var(--line);color:var(--txt);padding:12px;border-radius:10px;font:inherit;direction:ltr;text-align:left}
+input:focus,textarea:focus{outline:none;border-color:var(--gold)}
+label{display:block;margin:10px 0 5px;color:var(--mut);font-size:13px}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.btn{background:var(--gold);color:#1a1408;border:0;padding:12px 16px;border-radius:10px;font:inherit;font-weight:700;cursor:pointer}
+.btn:disabled{opacity:.45}
+.btn.big{width:100%;padding:15px;font-size:17px;background:linear-gradient(135deg,var(--gold2),var(--gold))}
+.btn.ghost{background:transparent;color:var(--gold);border:1px solid var(--gold)}
+.btn.red{background:var(--bad);color:#fff}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);border-radius:20px;padding:7px 12px;cursor:pointer;direction:ltr;font-size:13px;user-select:none;color:var(--mut)}
+.chip.on{background:#3a2f12;border-color:var(--gold);color:var(--gold2)}
+.mini{display:flex;gap:8px;margin-top:8px;font-size:13px}.mini a{color:var(--gold);cursor:pointer}
+.diag{padding:10px 12px;border-radius:10px;margin:8px 0;border-right:4px solid;background:#0c0a06;line-height:1.7}
+.diag.bad{border-color:var(--bad)}.diag.warn{border-color:var(--warn)}.diag.ok{border-color:var(--ok)}.diag.info{border-color:var(--info)}
+.stats{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.stat{flex:1;min-width:90px;background:#0c0a06;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;font-size:13px;color:var(--mut)}
+.stat b{display:block;font-size:22px;color:var(--gold2)}
+.stat.red b{color:var(--bad)}
+.gh{display:flex;gap:10px;align-items:flex-start;background:#0c0a06;border:1px solid var(--line);border-right:4px solid var(--bad);border-radius:10px;padding:10px;margin:8px 0}
+.gh input{width:22px;height:22px;accent-color:var(--gold);flex:0 0 auto;margin-top:2px}
+.gh .m{direction:ltr;text-align:right;font-family:Consolas,monospace;color:var(--gold2)}
+.gh .d{font-size:13px;color:var(--mut);line-height:1.7}
+.ltr{direction:ltr;unicode-bidi:embed;font-family:Consolas,monospace}
+details{border:1px solid var(--line);border-radius:10px;margin:8px 0;background:#0c0a06}
+summary{padding:10px 12px;cursor:pointer;color:var(--gold2)}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 8px;border-top:1px solid var(--line);text-align:left;direction:ltr;white-space:nowrap}
+th{color:var(--mut)}
+.okc{color:var(--ok)}.badc{color:var(--bad)}
+.hide{display:none}
+.prog{background:#0c0a06;border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:12px}
+.bar{height:8px;background:#2a2414;border-radius:8px;overflow:hidden;margin-top:8px}.bar i{display:block;height:100%;background:var(--gold);width:0;transition:width .3s}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid var(--gold);border-top-color:transparent;border-radius:50%;animation:s .8s linear infinite;vertical-align:middle}
+@keyframes s{to{transform:rotate(360deg)}}
+footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{color:var(--gold2);text-decoration:none}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--gold);color:#1a1408;padding:10px 18px;border-radius:10px;font-weight:700;display:none;z-index:9}
+</style>
+</head>
+<body>
+<header><div class="logo">M</div><div><h1>صياد الشبح</h1><small>المبرمج محمد سعيد — 01123840671</small></div></header>
+
+<div id="pinBox" class="hide"><main><div class="card"><h3>ادخل الرقم السري</h3>
+<input id="pin" type="password" inputmode="numeric"><div style="height:10px"></div><button class="btn big" onclick="sendPin()">دخول</button></div></main></div>
+
+<div id="app" class="hide">
+<nav><button data-t="scan" class="on">فحص الشبح</button><button data-t="inst">تركيب السكريبت</button><button data-t="set">الإعدادات</button></nav>
+<main>
+
+<section id="t-scan">
+  <div class="card">
+    <h3>اختار الرينجات اللي هتتفحص</h3>
+    <div id="scanChips" class="chips"></div>
+    <div class="mini"><a onclick="allChips('scanChips',1)">تحديد الكل</a>·<a onclick="allChips('scanChips',0)">إلغاء الكل</a></div>
+    <label class="mini" style="align-items:center"><input type="checkbox" id="redisc" style="width:18px;height:18px;accent-color:var(--gold)"> دوّر على الأكسسات من جديد (لو ضفت أكسسات جديدة)</label>
+    <button class="btn big" style="margin-top:10px" id="scanBtn" onclick="doScan()">🔍 ابدأ الفحص</button>
+    <div class="mut" style="font-size:12px;margin-top:8px;color:var(--mut)">الفحص بيكشف بس، ومش بيفصل أي حد غير لما تدوس «فصل المحدد».</div>
+    <div id="scanProg"></div>
+  </div>
+  <div id="scanRes"></div>
+</section>
+
+<section id="t-inst" class="hide">
+  <div class="card">
+    <h3>تركيب سكريبت msaeed-ghost</h3>
+    <div style="font-size:13px;color:var(--mut);line-height:1.8;margin-bottom:10px">السكريبت بيخلي كل أكسس يكشف العميل الشبح ويفصله لوحده أوتوماتيك، من غير ما تفتح البرنامج. اختار الرينجات اللي عايز تركّبه عليها:</div>
+    <div id="instChips" class="chips"></div>
+    <div class="mini"><a onclick="allChips('instChips',1)">تحديد الكل</a>·<a onclick="allChips('instChips',0)">إلغاء الكل</a></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="instBtn" onclick="doInstall(false)">⬇️ تركيب على المحدد</button>
+      <button class="btn ghost" id="remBtn" onclick="doInstall(true)">إزالة من المحدد</button>
+    </div>
+    <div id="instProg"></div>
+  </div>
+  <div id="instRes"></div>
+</section>
+
+<section id="t-set" class="hide">
+  <div class="card">
+    <h3>دخول الأكسسات (SSH)</h3>
+    <div class="row"><div><label>اسم المستخدم</label><input id="c_user"></div><div><label>بورت SSH</label><input id="c_port" type="number"></div></div>
+    <label>الباسورد <span id="pwHint"></span></label><input id="c_pass" type="password">
+    <label class="mini" style="align-items:center"><input type="checkbox" id="c_clear" style="width:18px;height:18px;accent-color:var(--gold)"> الأكسسات من غير باسورد</label>
+  </div>
+  <div class="card">
+    <h3>الرينجات</h3>
+    <label>كل رينج في سطر (أول 3 أرقام بس)</label><textarea id="c_ranges" rows="7"></textarea>
+    <div class="row"><div><label>من</label><input id="c_from" type="number"></div><div><label>إلى</label><input id="c_to" type="number"></div></div>
+    <div style="font-size:12px;color:var(--mut);margin-top:6px">الافتراضي من 2 لـ 254، عشان .1 هو المايكروتك.</div>
+  </div>
+  <div class="card pcOnly">
+    <h3>البرنامج</h3>
+    <label>رقم سري لفتح البرنامج (مهم لو هتفتحه من الموبايل)</label><input id="c_pin" type="password" inputmode="numeric">
+    <label>بورت البرنامج</label><input id="c_lport" type="number">
+    <div id="urls" style="margin-top:12px;font-size:13px"></div>
+  </div>
+  <button class="btn big" onclick="saveCfg()">حفظ</button>
+</section>
+</main>
+<footer>برمجة <b>المبرمج محمد سعيد</b> — <a href="https://wa.me/201123840671" target="_blank">واتساب 01123840671</a></footer>
+</div>
+<div id="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let CFG=null,LAST=null;
+function toast(t){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',2600)}
+const NATIVE=!!window.Android;let _cid=0;const _cbs={};
+window.__cb=(id,r)=>{const f=_cbs[id];delete _cbs[id];if(f)f(r)};
+async function api(p,b){
+  if(NATIVE){const r=await new Promise(res=>{const id='c'+(++_cid);_cbs[id]=res;Android.call(id,p,b?JSON.stringify(b):'')});
+    try{return JSON.parse(r)}catch(e){return {error:'خطأ في البرنامج'}}}
+  const r=await fetch('/api/'+p,{method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});
+  const j=await r.json().catch(()=>({error:'البرنامج مش بيرد'}));
+  if(j.error==='need_pin'){$('app').classList.add('hide');$('pinBox').classList.remove('hide');throw 0}
+  return j;
+}
+async function sendPin(){const j=await api('pin',{pin:$('pin').value});if(j.ok){$('pinBox').classList.add('hide');init()}else toast(j.error)}
+$('pin').onkeydown=e=>{if(e.key==='Enter')sendPin()};
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+  ['scan','inst','set'].forEach(t=>$('t-'+t).classList.toggle('hide',t!==b.dataset.t));
+});
+function chips(id){$(id).innerHTML=CFG.ranges.map(r=>`<span class="chip on" data-r="${esc(r)}">${esc(r)}.x</span>`).join('');
+  $(id).querySelectorAll('.chip').forEach(c=>c.onclick=()=>c.classList.toggle('on'))}
+function allChips(id,on){$(id).querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',!!on))}
+const picked=id=>[...$(id).querySelectorAll('.chip.on')].map(c=>c.dataset.r);
+
+// progress polling while a request runs
+async function withProgress(boxId,btns,fn){
+  btns.forEach(b=>$(b).disabled=true);
+  const box=$(boxId);box.innerHTML='<div class="prog"><span class="spin"></span> <span id="pt">بجهّز...</span><div class="bar"><i id="pb"></i></div></div>';
+  const t=setInterval(async()=>{try{const p=await api('progress');if(p.busy&&$('pt')){$('pt').textContent=`${p.text} — ${p.done} من ${p.total}`;$('pb').style.width=(p.total?p.done*100/p.total:0)+'%'}}catch(e){}},700);
+  try{return await fn()}finally{clearInterval(t);box.innerHTML='';btns.forEach(b=>$(b).disabled=false)}
+}
+const sec=ms=>{ms=+ms||0;const s=Math.round(ms/1000);return s<60?s+' ثانية':Math.floor(s/60)+' دقيقة'};
+
+async function doScan(){
+  const ranges=picked('scanChips');if(!ranges.length)return toast('اختار رينج واحد على الأقل');
+  let j;try{j=await withProgress('scanProg',['scanBtn'],()=>api('scan',{ranges,rediscover:$('redisc').checked}))}catch(e){return}
+  if(j.error){$('scanRes').innerHTML=`<div class="card"><div class="diag bad">${esc(j.error)}</div></div>`;return}
+  LAST=j;$('redisc').checked=false;renderScan();
+}
+function renderScan(){
+  const j=LAST;
+  let h=`<div class="card"><div class="stats">
+    <div class="stat"><b>${j.okCount}</b>أكسس اتفحص</div><div class="stat"><b>${j.clients}</b>عميل متوصل</div>
+    <div class="stat ${j.ghosts.length?'red':''}"><b>${j.ghosts.length}</b>عميل شبح</div><div class="stat"><b>${j.installed}/${j.okCount}</b>عليهم السكريبت</div></div>`;
+  if(!j.scanned)h+='<div class="diag warn">⚠️ مالقيتش أي أكسس في الرينجات دي. اتأكد إنك على نفس الشبكة، أو علّم على «دوّر على الأكسسات من جديد».</div>';
+  if(j.failed.length)h+=`<div class="diag warn">⚠️ ${j.failed.length} أكسس ماقدرتش أدخلهم (شوف التفاصيل تحت).</div>`;
+  if(!j.ghosts.length&&j.okCount)h+='<div class="diag ok">✅ مفيش أي عميل شبح دلوقتي.</div>';
+  if(j.ghosts.length){
+    h+=`<h3 style="margin-top:12px">العملاء المعلّقين (الشبح)</h3>`+j.ghosts.map((g,i)=>`<label class="gh"><input type="checkbox" class="gk" data-i="${i}" checked>
+      <div><div class="m">${esc(g.mac)}</div><div class="d">
+      معلّق على: <b class="ltr">${esc(g.ip)}</b> ${esc(g.host)} (${esc(g.iface)}) — ساكت بقاله ${sec(g.inactive)}<br>
+      ${g.reason==='two'?`شغال فعلاً على: <b class="ltr">${esc(g.real)}</b> ${esc(g.realHost)}`:'الأكسس شايف العميل جاي من الكابل، يعني متوصل على أكسس تاني'}
+      </div></div></label>`).join('')+
+    `<button class="btn big red" id="kickBtn" style="margin-top:8px" onclick="doKick()">✂️ فصل المحدد من الأكسس المعلّق</button><div id="kickProg"></div><div id="kickRes"></div>`;
+  }
+  h+='</div>';
+  h+=`<div class="card"><h3>دوّر على عميل</h3><input id="find" placeholder="اكتب MAC أو جزء منه" oninput="findMac()"><div id="findRes" style="margin-top:8px"></div></div>`;
+  if(j.dups.length)h+=`<div class="card"><details><summary>عملاء ظاهرين على أكسسين بس مش أكيد شبح (${j.dups.length})</summary><div class="tw"><table><tr><th>MAC</th><th>AP</th><th>idle</th><th>real AP</th></tr>${j.dups.map(d=>`<tr><td>${esc(d.mac)}</td><td>${esc(d.ip)}</td><td>${sec(d.inactive)}</td><td>${esc(d.real)}</td></tr>`).join('')}</table></div></details></div>`;
+  h+=`<div class="card"><details><summary>الأكسسات (${j.aps.length})</summary><div class="tw"><table><tr><th>IP</th><th>name</th><th>clients</th><th>script</th></tr>${j.aps.map(a=>`<tr><td>${esc(a.ip)}</td><td>${esc(a.host)}</td><td>${a.n}</td><td class="${a.installed?'okc':'badc'}">${a.installed?'✓':'✗'}</td></tr>`).join('')}</table></div></details>`;
+  if(j.failed.length)h+=`<details><summary>أكسسات ماقدرتش أدخلها (${j.failed.length})</summary><div class="tw"><table>${j.failed.map(f=>`<tr><td>${esc(f.ip)}</td><td>${esc(f.err)}</td></tr>`).join('')}</table></div></details>`;
+  h+='</div>';
+  $('scanRes').innerHTML=h;
+}
+function findMac(){
+  const q=$('find').value.toLowerCase().replace(/[^0-9a-f]/g,'');if(q.length<2){$('findRes').innerHTML='';return}
+  const r=LAST.all.filter(x=>x.mac.replace(/:/g,'').includes(q));
+  $('findRes').innerHTML=r.length?`<div class="tw"><table><tr><th>MAC</th><th>AP</th><th>name</th><th>iface</th><th>idle</th><th>signal</th></tr>${r.slice(0,50).map(x=>`<tr><td>${esc(x.mac)}</td><td>${esc(x.ip)}</td><td>${esc(x.host)}</td><td>${esc(x.iface)}</td><td>${sec(x.inactive)}</td><td>${esc(x.signal)}</td></tr>`).join('')}</table></div>`:'<div class="diag warn">مش متوصل على أي أكسس اتفحص</div>';
+}
+async function doKick(){
+  const items=[...document.querySelectorAll('.gk:checked')].map(c=>LAST.ghosts[+c.dataset.i]).map(g=>({ip:g.ip,iface:g.iface,mac:g.mac}));
+  if(!items.length)return toast('مفيش حاجة متحددة');
+  if(!confirm(`هفصل ${items.length} عميل من الأكسسات المعلّقين عليها بس. العميل مش هيتأثر لأنه شغال على أكسس تاني. أكمل؟`))return;
+  let j;try{j=await withProgress('kickProg',['kickBtn'],()=>api('kick',{items}))}catch(e){return}
+  if(j.error)return toast(j.error);
+  const ok=j.results.filter(r=>r.ok).length;
+  $('kickRes').innerHTML=`<div class="diag ${ok===j.results.length?'ok':'warn'}">اتفصل ${ok} من ${j.results.length}. خلي العميل يقفل الواي فاي ويفتحه لو لسه مفيش نت.</div>`+
+    j.results.filter(r=>!r.ok).map(r=>`<div class="diag bad"><span class="ltr">${esc(r.mac)} @ ${esc(r.ip)}</span>: ${esc(r.err||'فشل')}</div>`).join('');
+}
+async function doInstall(remove){
+  const ranges=picked('instChips');if(!ranges.length)return toast('اختار رينج واحد على الأقل');
+  if(!confirm(remove?'هشيل السكريبت من كل الأكسسات في الرينجات المحددة. أكمل؟':'هركّب السكريبت على كل الأكسسات في الرينجات المحددة. أكمل؟'))return;
+  let j;try{j=await withProgress('instProg',['instBtn','remBtn'],()=>api('install',{ranges,remove}))}catch(e){return}
+  if(j.error){$('instRes').innerHTML=`<div class="card"><div class="diag bad">${esc(j.error)}</div></div>`;return}
+  const r=j.results,ok=r.filter(x=>x.ok).length;
+  $('instRes').innerHTML=`<div class="card"><div class="diag ${ok===r.length&&r.length?'ok':'warn'}">${r.length?`${remove?'اتشال من':'اتركّب على'} ${ok} أكسس من ${r.length}`:'مالقيتش أكسسات في الرينجات دي'}</div>
+   <div class="tw"><table><tr><th>IP</th><th></th><th></th></tr>${r.map(x=>`<tr><td>${esc(x.ip)}</td><td class="${x.ok?'okc':'badc'}">${x.ok?'✓':'✗'}</td><td>${esc(x.err)}</td></tr>`).join('')}</table></div></div>`;
+}
+async function loadCfg(){
+  const j=await api('config');CFG=j.config;
+  $('c_user').value=CFG.user;$('c_port').value=CFG.port;$('c_ranges').value=CFG.ranges.join('\n');
+  $('c_from').value=CFG.from;$('c_to').value=CFG.to;if(!NATIVE){$('c_pin').value=CFG.pin||'';$('c_lport').value=CFG.listen_port;}
+  $('pwHint').textContent=j.has_password?'(محفوظ — سيبه فاضي عشان يفضل زي ما هو)':'';$('c_clear').checked=false;
+  if(!NATIVE)$('urls').innerHTML='<div style="color:var(--mut)">تفتحه من الموبايل وهو على نفس الشبكة:</div>'+(j.urls||[]).map(u=>`<div class="ltr" style="color:var(--gold2);margin-top:4px">${esc(u)}</div>`).join('');
+  chips('scanChips');chips('instChips');
+}
+async function saveCfg(){
+  const j=await api('config',{config:{user:$('c_user').value,port:+$('c_port').value,password:$('c_pass').value,clear_password:$('c_clear').checked,
+    ranges:$('c_ranges').value.split(/[\s,]+/).map(s=>s.replace(/\.x$|\.$/,'')).filter(Boolean),from:+$('c_from').value,to:+$('c_to').value,pin:NATIVE?'':$('c_pin').value,listen_port:NATIVE?0:+$('c_lport').value}});
+  if(j.error)return toast(j.error);$('c_pass').value='';toast('اتحفظ');loadCfg();
+}
+async function init(){if(NATIVE)document.querySelectorAll('.pcOnly').forEach(e=>e.remove());try{await loadCfg();$('app').classList.remove('hide');$('pinBox').classList.add('hide')}catch(e){}}
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.msaeed.ghost'
+    compileSdk 34
+    defaultConfig {
+        applicationId "com.msaeed.ghost"
+        minSdk 24
+        targetSdk 34
+        versionCode Integer.parseInt(System.getenv("GITHUB_RUN_NUMBER") ?: "1")
+        versionName "1." + (System.getenv("GITHUB_RUN_NUMBER") ?: "0")
+    }
+    signingConfigs {
+        debug {
+            if (file('release.jks').exists()) {
+                storeFile file('release.jks')
+                storePassword 'elekhwa2026'
+                keyAlias 'elekhwa'
+                keyPassword 'elekhwa2026'
+            }
+        }
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    packaging {
+        resources {
+            excludes += ['META-INF/LICENSE.md', 'META-INF/NOTICE.md', 'META-INF/LICENSE', 'META-INF/NOTICE', 'META-INF/DEPENDENCIES', 'META-INF/versions/9/OSGI-INF/MANIFEST.MF', 'META-INF/*.SF', 'META-INF/*.RSA']
+        }
+    }
+}
+dependencies {
+    implementation 'androidx.webkit:webkit:1.11.0'
+    implementation 'com.github.mwiede:jsch:0.2.20'
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
+}
