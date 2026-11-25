@@ -464,7 +464,17 @@ function body(req) {
   return new Promise(r => { let d = ''; req.on('data', c => { d += c; if (d.length > 1e6) req.destroy(); }); req.on('end', () => { try { r(JSON.parse(d || '{}')); } catch (e) { r({}); } }); });
 }
 const send = (res, obj, code = 200) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); };
-const authed = req => !cfg.pin || tokens.has(((req.headers.cookie || '').match(/gh=([a-f0-9]+)/) || [])[1]);
+// ---------- القفل: اسم المستخدم ثابت M saeed والباسورد بصمة PBKDF2 مش الباسورد نفسه ----------
+const LOCK_USER = 'M saeed';
+let lkFails = 0, lkBlocked = 0;
+const tok = req => ((req.headers.cookie || '').match(/gh=([a-f0-9]+)/) || [])[1];
+const pwRec = pw => { const salt = crypto.randomBytes(16); return { salt: salt.toString('hex'), hash: crypto.pbkdf2Sync(String(pw), salt, 120000, 32, 'sha256').toString('hex') }; };
+const pwOk = pw => { const l = cfg.lock; if (!l || !l.hash) return false;
+  const h = crypto.pbkdf2Sync(String(pw || ''), Buffer.from(l.salt, 'hex'), 120000, 32, 'sha256'); const ref = Buffer.from(l.hash, 'hex');
+  return h.length === ref.length && crypto.timingSafeEqual(h, ref); };
+const authed = req => !!(cfg.lock && cfg.lock.hash) && tokens.has(tok(req));
+const newSession = res => { const t = crypto.randomBytes(16).toString('hex'); tokens.add(t); res.setHeader('Set-Cookie', `gh=${t}; Path=/; HttpOnly; SameSite=Strict`); };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 async function guard(res, fn) {
   if (progress.busy) return send(res, { error: 'فيه عملية شغالة دلوقتي، استنى لما تخلص' });
@@ -476,21 +486,35 @@ async function guard(res, fn) {
 const server = http.createServer(async (req, res) => {
   const u = req.url.split('?')[0];
   if (u === '/') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end(HTML); }
-  if (u === '/api/pin') {
+  if (u === '/api/lock_state') return send(res, { state: !(cfg.lock && cfg.lock.hash) ? 'setup' : authed(req) ? 'open' : 'locked', user: LOCK_USER });
+  if (u === '/api/lock_setup') {
     const b = await body(req);
-    if (!cfg.pin || b.pin === cfg.pin) {
-      const t = crypto.randomBytes(16).toString('hex'); tokens.add(t);
-      res.setHeader('Set-Cookie', `gh=${t}; Path=/; HttpOnly; Max-Age=2592000`);
-      return send(res, { ok: true });
-    }
-    return setTimeout(() => send(res, { error: 'الرقم السري غلط' }), 800);
+    if (cfg.lock && cfg.lock.hash) return send(res, { error: 'الباسورد متعمل بالفعل' });
+    if (!b.pw || String(b.pw).length < 4) return send(res, { error: 'الباسورد لازم يبقى 4 حروف أو أرقام على الأقل' });
+    cfg.lock = pwRec(b.pw); delete cfg.pin; save(); newSession(res); return send(res, { ok: true });
   }
+  if (u === '/api/lock_login') {
+    const b = await body(req); const now = Date.now();
+    if (now < lkBlocked) return send(res, { error: `محاولات كتير غلط، استنى ${Math.ceil((lkBlocked - now) / 1000)} ثانية` });
+    if (String(b.user || '').trim() !== LOCK_USER || !pwOk(b.pw)) {
+      await sleep(800);
+      if (++lkFails >= 5) { lkFails = 0; lkBlocked = now + 60000; return send(res, { error: 'محاولات كتير غلط، البرنامج اتقفل دقيقة' }); }
+      return send(res, { error: 'اسم المستخدم أو الباسورد غلط' });
+    }
+    lkFails = 0; newSession(res); return send(res, { ok: true });
+  }
+  if (u === '/api/lock_logout') { tokens.delete(tok(req)); return send(res, { ok: true }); }
   if (!u.startsWith('/api/')) { res.writeHead(404); return res.end(); }
-  if (!authed(req)) return send(res, { error: 'need_pin' }, 401);
+  if (!authed(req)) return send(res, { error: 'locked' }, 401);
   const b = req.method === 'POST' ? await body(req) : {};
   const ranges = Array.isArray(b.ranges) ? b.ranges.filter(okRange) : cfg.ranges;
   switch (u) {
     case '/api/progress': return send(res, progress);
+    case '/api/lock_change': {
+      if (!pwOk(b.old)) { await sleep(800); return send(res, { error: 'الباسورد الحالي غلط' }); }
+      if (!b.pw || String(b.pw).length < 4) return send(res, { error: 'الباسورد لازم يبقى 4 حروف أو أرقام على الأقل' });
+      cfg.lock = pwRec(b.pw); save(); return send(res, { ok: true });
+    }
     case '/api/version': return send(res, { name: APP_VERSION, code: APP_CODE });
     case '/api/upd_check': try { return send(res, await updCheck()); } catch (e) { return send(res, { error: 'مفيش نت أو مقدرتش أوصل لسيرفر التحديث' }); }
     case '/api/upd_go': try { return send(res, await updGo()); } catch (e) { return send(res, { error: e.message }); }
@@ -498,7 +522,7 @@ const server = http.createServer(async (req, res) => {
       if (req.method === 'POST') {
         const n = b.config || {};
         if (Array.isArray(n.ranges)) cfg.ranges = n.ranges.map(s => String(s).trim()).filter(okRange);
-        for (const k of ['user', 'pin', 'mt_ip', 'mt_user']) if (typeof n[k] === 'string') cfg[k] = n[k].trim();
+        for (const k of ['user', 'mt_ip', 'mt_user']) if (typeof n[k] === 'string') cfg[k] = n[k].trim();
         if (typeof n.mt_pass === 'string' && n.mt_pass !== '') cfg.mt_pass = n.mt_pass;
         if (n.mt_clear) cfg.mt_pass = '';
         if (typeof n.mt_on === 'boolean') cfg.mt_on = n.mt_on;
@@ -507,7 +531,7 @@ const server = http.createServer(async (req, res) => {
         for (const k of ['from', 'to', 'port', 'listen_port', 'mt_port']) if (+n[k]) cfg[k] = +n[k];
         save();
       }
-      return send(res, { config: { ...cfg, password: '', mt_pass: '', aps: undefined }, has_password: !!cfg.password, has_mt_password: !!cfg.mt_pass, ap_count: cfg.aps.length, urls: lanUrls() });
+      return send(res, { config: { ...cfg, password: '', mt_pass: '', aps: undefined, lock: undefined, pin: undefined }, has_password: !!cfg.password, has_mt_password: !!cfg.mt_pass, ap_count: cfg.aps.length, urls: lanUrls() });
     case '/api/mt_test': try { const r = await mtOpen(); const id = await r.run('/system/identity/print'); r.close(); return send(res, { ok: true, name: (id[0] || {}).name }); } catch (e) { return send(res, { error: e.message }); }
     case '/api/ap_action': {
       const ip = String(b.ip || ''), act = b.action;

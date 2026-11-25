@@ -68,8 +68,15 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
 <header><div class="logo">M</div><div><h1>فحص عميل معلق</h1><small>المبرمج محمد سعيد — 01123840671</small></div><button id="refBtn" onclick="doRefresh()" title="تحديث">🔄</button></header>
 <div id="pullInd">⬇️ اسحب لتحت للتحديث</div>
 
-<div id="pinBox" class="hide"><main><div class="card"><h3>ادخل الرقم السري</h3>
-<input id="pin" type="password" inputmode="numeric"><div style="height:10px"></div><button class="btn big" onclick="sendPin()">دخول</button></div></main></div>
+<div id="lockBox" class="hide"><main><div class="card">
+  <h3 id="lkTitle">تسجيل الدخول</h3>
+  <div id="lkNote" style="font-size:13px;color:var(--mut);line-height:1.7;margin-bottom:6px"></div>
+  <label>اسم المستخدم</label><input id="lkUser" value="M saeed" readonly style="opacity:.8">
+  <label>الباسورد</label><input id="lkPw" type="password" onkeydown="if(event.key==='Enter')lkGo()">
+  <div id="lkPw2Box" class="hide"><label>اكتب الباسورد تاني</label><input id="lkPw2" type="password" onkeydown="if(event.key==='Enter')lkGo()"></div>
+  <div style="height:12px"></div><button class="btn big" id="lkBtn" onclick="lkGo()">دخول</button>
+  <div id="lkErr" style="margin-top:8px"></div>
+</div></main></div>
 
 <div id="app" class="hide">
 <div id="updBar"><span id="updTxt">🎉 فيه إصدار جديد</span><button onclick="applyUpd()">تحديث دلوقتي</button></div>
@@ -115,6 +122,16 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
 
 <section id="t-set" class="hide">
   <div class="card">
+    <h3>الحساب</h3>
+    <div style="font-size:14px">انت داخل باسم <b class="ltr">M saeed</b></div>
+    <details style="margin-top:10px"><summary>تغيير الباسورد</summary><div style="padding:0 12px 12px">
+      <label>الباسورد الحالي</label><input id="ak_old" type="password">
+      <label>الباسورد الجديد</label><input id="ak_new" type="password">
+      <label>اكتب الجديد تاني</label><input id="ak_new2" type="password">
+      <div style="height:10px"></div><button class="btn" onclick="lkChange()">حفظ الباسورد الجديد</button></div></details>
+    <button class="btn ghost" style="margin-top:10px;color:var(--bad);border-color:var(--bad)" onclick="lkOut()">تسجيل خروج</button>
+  </div>
+  <div class="card">
     <h3>التحديث</h3>
     <div style="font-size:14px">الإصدار اللي عندك: <b id="curVer" class="ltr"></b></div>
     <div id="updSt" style="font-size:14px;margin-top:8px;color:var(--mut);line-height:1.7"></div>
@@ -146,7 +163,6 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
   </div>
   <div class="card pcOnly">
     <h3>البرنامج</h3>
-    <label>رقم سري لفتح البرنامج (مهم لو هتفتحه من الموبايل)</label><input id="c_pin" type="password" inputmode="numeric">
     <label>بورت البرنامج</label><input id="c_lport" type="number">
     <div id="urls" style="margin-top:12px;font-size:13px"></div>
   </div>
@@ -169,11 +185,30 @@ async function api(p,b){
     try{return JSON.parse(r)}catch(e){return {error:'خطأ في البرنامج'}}}
   const r=await fetch('/api/'+p,{method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});
   const j=await r.json().catch(()=>({error:'البرنامج مش بيرد'}));
-  if(j.error==='need_pin'){$('app').classList.add('hide');$('pinBox').classList.remove('hide');throw 0}
+  if(j.error==='locked'||j.error==='need_pin'){showLock('locked');throw 0}
   return j;
 }
-async function sendPin(){const j=await api('pin',{pin:$('pin').value});if(j.ok){$('pinBox').classList.add('hide');init()}else toast(j.error)}
-$('pin').onkeydown=e=>{if(e.key==='Enter')sendPin()};
+// ---------- القفل: اسم المستخدم ثابت M saeed ----------
+async function rawApi(p,b){const r=await fetch('/api/'+p,{method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});return r.json().catch(()=>({error:'البرنامج مش بيرد'}))}
+const LK={
+  state:async()=>NATIVE?(Android.lockState?Android.lockState():'open'):(await rawApi('lock_state')).state,
+  setup:async pw=>NATIVE?Android.lockSetup(pw):((await rawApi('lock_setup',{pw})).error||''),
+  login:async pw=>NATIVE?Android.lockLogin('M saeed',pw):((await rawApi('lock_login',{user:'M saeed',pw})).error||''),
+  change:async(o,n)=>NATIVE?Android.lockChange(o,n):((await rawApi('lock_change',{old:o,pw:n})).error||''),
+  logout:async()=>{if(NATIVE)Android.lockLogout();else await rawApi('lock_logout',{})}};
+let LKMODE='locked';
+function showLock(st){LKMODE=st;$('app').classList.add('hide');$('lockBox').classList.remove('hide');$('lkErr').innerHTML='';$('lkPw').value='';$('lkPw2').value='';
+  const setup=st==='setup';$('lkTitle').textContent=setup?'أول مرة: اعمل باسورد للبرنامج':'تسجيل الدخول';
+  $('lkNote').textContent=setup?'الباسورد ده هو اللي هيفتح البرنامج بعد كده، واسم المستخدم ثابت M saeed. الباسورد بيتحفظ متشفّر ومحدش يقدر يعرفه.':'البرنامج مقفول. ادخل بالباسورد.';
+  $('lkPw2Box').classList.toggle('hide',!setup);$('lkBtn').textContent=setup?'حفظ الباسورد والدخول':'دخول';setTimeout(()=>$('lkPw').focus(),100)}
+async function lkGo(){const pw=$('lkPw').value;$('lkErr').innerHTML='';
+  if(LKMODE==='setup'&&pw!==$('lkPw2').value){$('lkErr').innerHTML='<div class="diag bad">الباسوردين مش زي بعض</div>';return}
+  $('lkBtn').disabled=true;let e;try{e=LKMODE==='setup'?await LK.setup(pw):await LK.login(pw)}catch(x){e='حصلت مشكلة'}$('lkBtn').disabled=false;
+  if(e){$('lkErr').innerHTML='<div class="diag bad">'+esc(e)+'</div>';$('lkPw').value='';return}
+  $('lockBox').classList.add('hide');init()}
+async function lkChange(){const o=$('ak_old').value,n=$('ak_new').value;if(n!==$('ak_new2').value)return toast('الباسورد الجديد مش زي بعض');
+  const e=await LK.change(o,n);if(e)return toast(e);['ak_old','ak_new','ak_new2'].forEach(i=>$(i).value='');toast('✅ الباسورد اتغيّر')}
+async function lkOut(){await LK.logout();showLock('locked')}
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
   ['scan','inst','set'].forEach(t=>$('t-'+t).classList.toggle('hide',t!==b.dataset.t));
@@ -470,7 +505,7 @@ async function doInstall(remove){
 async function loadCfg(){
   const j=await api('config');CFG=j.config;
   $('c_user').value=CFG.user;$('c_port').value=CFG.port;$('c_ranges').value=CFG.ranges.join('\n');
-  $('c_from').value=CFG.from;$('m_on').checked=!!CFG.mt_on;$('mBox').style.display=CFG.mt_on?'':'none';$('m_ip').value=CFG.mt_ip||'';$('m_port').value=CFG.mt_port||'';$('m_user').value=CFG.mt_user||'';$('mpwHint').textContent=j.has_mt_password?'(محفوظ — سيبه فاضي عشان يفضل زي ما هو)':'';$('m_clear').checked=false;$('c_to').value=CFG.to;if(!NATIVE){$('c_pin').value=CFG.pin||'';$('c_lport').value=CFG.listen_port;}
+  $('c_from').value=CFG.from;$('m_on').checked=!!CFG.mt_on;$('mBox').style.display=CFG.mt_on?'':'none';$('m_ip').value=CFG.mt_ip||'';$('m_port').value=CFG.mt_port||'';$('m_user').value=CFG.mt_user||'';$('mpwHint').textContent=j.has_mt_password?'(محفوظ — سيبه فاضي عشان يفضل زي ما هو)':'';$('m_clear').checked=false;$('c_to').value=CFG.to;if(!NATIVE){$('c_lport').value=CFG.listen_port;}
   $('pwHint').textContent=j.has_password?'(محفوظ — سيبه فاضي عشان يفضل زي ما هو)':'';$('c_clear').checked=false;
   if(!NATIVE)$('urls').innerHTML='<div style="color:var(--mut)">تفتحه من الموبايل وهو على نفس الشبكة:</div>'+(j.urls||[]).map(u=>`<div class="ltr" style="color:var(--gold2);margin-top:4px">${esc(u)}</div>`).join('');
   chips('scanChips');chips('instChips');
@@ -479,7 +514,7 @@ async function mtTest(){await saveCfg(true);$('mtRes').innerHTML='<div class="di
   const j=await api('mt_test');$('mtRes').innerHTML=j.error?`<div class="diag bad">${esc(j.error)}</div>`:`<div class="diag ok">✅ متصل بالمايكروتك ${esc(j.name||'')}</div>`}
 async function saveCfg(quiet){
   const j=await api('config',{config:{user:$('c_user').value,port:+$('c_port').value,password:$('c_pass').value,clear_password:$('c_clear').checked,
-    ranges:$('c_ranges').value.split(/[\s,]+/).map(s=>s.replace(/\.x$|\.$/,'')).filter(Boolean),from:+$('c_from').value,to:+$('c_to').value,mt_on:$('m_on').checked,mt_ip:$('m_ip').value,mt_port:+$('m_port').value||0,mt_user:$('m_user').value,mt_pass:$('m_pass').value,mt_clear:$('m_clear').checked,pin:NATIVE?'':$('c_pin').value,listen_port:NATIVE?0:+$('c_lport').value}});
+    ranges:$('c_ranges').value.split(/[\s,]+/).map(s=>s.replace(/\.x$|\.$/,'')).filter(Boolean),from:+$('c_from').value,to:+$('c_to').value,mt_on:$('m_on').checked,mt_ip:$('m_ip').value,mt_port:+$('m_port').value||0,mt_user:$('m_user').value,mt_pass:$('m_pass').value,mt_clear:$('m_clear').checked,listen_port:NATIVE?0:+$('c_lport').value}});
   if(j.error)return toast(j.error);$('c_pass').value='';$('m_pass').value='';if(quiet!==true)toast('اتحفظ');loadCfg();
 }
 async function checkUpd(manual){if(manual)$('updSt').textContent='بدوّر على تحديث...';
@@ -523,10 +558,12 @@ async function doRefresh(){
   addEventListener('touchend',()=>{const go=py!==null&&pd>100;py=null;pd=0;PI.style.transform='translateY(-60px)';PI.style.opacity=0;if(go)doRefresh()});
 })();
 async function init(){
+  let st='open';try{st=await LK.state()}catch(e){}
+  if(st!=='open'){showLock(st);return}
   if(NATIVE){document.querySelectorAll('.pcOnly').forEach(e=>e.remove());try{$('curVer').textContent=Android.appVersion()}catch(e){}showJustUpdated();setTimeout(()=>{try{const p=Android.takeBgScan&&Android.takeBgScan();if(p)window.__bgScan(p)}catch(e){}},800)}
   else{try{const v=await api('version');$('curVer').textContent=v.name}catch(e){}}
   $('verTxt').textContent='إصدار '+$('curVer').textContent+' —';
-  setTimeout(()=>checkUpd(false),2500);try{await loadCfg();$('app').classList.remove('hide');$('pinBox').classList.add('hide')}catch(e){}}
+  setTimeout(()=>checkUpd(false),2500);try{await loadCfg();$('app').classList.remove('hide');$('lockBox').classList.add('hide')}catch(e){}}
 init();
 </script>
 </body>

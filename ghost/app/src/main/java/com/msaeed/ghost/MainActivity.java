@@ -35,7 +35,7 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     // زوّد الرقم ده (وفي ghost/engine-version.txt) لما تغيّر في كود الجافا
-    static final int ENGINE = 12;
+    static final int ENGINE = 13;
     static final String UPD = "https://github.com/sm0902556-sketch/msaeed-shop/releases/download/ghost-latest/";
 
     private WebView web;
@@ -183,6 +183,14 @@ public class MainActivity extends Activity {
             });
         }
 
+        // ---------- القفل (اسم المستخدم ثابت M saeed) ----------
+        @JavascriptInterface public String lockState() { return Lock.state(MainActivity.this); }
+        @JavascriptInterface public String lockUser() { return Lock.USER; }
+        @JavascriptInterface public String lockSetup(String pw) { try { return Lock.setup(MainActivity.this, pw); } catch (Exception e) { return "حصلت مشكلة"; } }
+        @JavascriptInterface public String lockLogin(String user, String pw) { try { return Lock.login(MainActivity.this, user, pw); } catch (Exception e) { return "حصلت مشكلة"; } }
+        @JavascriptInterface public String lockChange(String o, String n) { try { return Lock.change(MainActivity.this, o, n); } catch (Exception e) { return "حصلت مشكلة"; } }
+        @JavascriptInterface public void lockLogout() { Lock.logout(); }
+
         @JavascriptInterface
         public String takeBgScan() { String r = bgScan; bgScan = null; return r == null ? "" : r; }
 
@@ -195,6 +203,7 @@ public class MainActivity extends Activity {
                 String r;
                 try {
                     if ("upd_check".equals(path)) r = checkUpdate(false);
+                    else if (!Lock.isOpen(MainActivity.this)) r = Engine.err("locked");   // القفل في الجافا نفسه
                     else r = engine.handle(path, body);
                 } catch (Throwable t) {
                     r = "upd_check".equals(path) ? Engine.err("مفيش نت أو مقدرتش أوصل لسيرفر التحديث") : Engine.err(String.valueOf(t.getMessage()));
