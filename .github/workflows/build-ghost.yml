@@ -38,3 +38,13 @@ jobs:
           name: صياد الشبح - آخر نسخة
           files: MsaeedGhostHunter.apk
           make_latest: false
+      - name: Version info
+        run: |
+          NOTE=$(head -n1 ghost/release-notes.txt 2>/dev/null || true)
+          jq -n --arg n "$NOTE" --argjson c "$GITHUB_RUN_NUMBER" '{code:$c,name:("1."+($c|tostring)),notes:$n}' > version.json
+          cat version.json
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ghost-latest
+          files: version.json
+          make_latest: false
