@@ -41,10 +41,14 @@ jobs:
       - name: Version info
         run: |
           NOTE=$(head -n1 ghost/release-notes.txt 2>/dev/null || true)
-          jq -n --arg n "$NOTE" --argjson c "$GITHUB_RUN_NUMBER" '{code:$c,name:("1."+($c|tostring)),notes:$n}' > version.json
+          ENG=$(cat ghost/engine-version.txt 2>/dev/null || echo 1)
+          jq -n --arg n "$NOTE" --argjson c "$GITHUB_RUN_NUMBER" --argjson e "$ENG" '{code:$c,name:("1."+($c|tostring)),notes:$n,engine:$e}' > version.json
+          cp ghost/app/src/main/assets/index.html index.html
           cat version.json
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ghost-latest
-          files: version.json
+          files: |
+            version.json
+            index.html
           make_latest: false

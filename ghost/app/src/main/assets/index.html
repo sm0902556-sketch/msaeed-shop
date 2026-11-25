@@ -105,7 +105,7 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
     <h3>التحديث</h3>
     <div style="font-size:14px">الإصدار اللي عندك: <b id="curVer" class="ltr"></b></div>
     <div id="updSt" style="font-size:14px;margin-top:8px;color:var(--mut);line-height:1.7"></div>
-    <div class="row" style="margin-top:10px"><button class="btn ghost" onclick="checkUpd(true)">🔍 دوّر على تحديث</button><button class="btn hide" id="updGo" onclick="applyUpd()">⬆️ حدّث دلوقتي</button></div>
+    <div class="row" style="margin-top:10px"><button class="btn ghost" onclick="checkUpd(true)">🔍 دوّر على تحديث</button><button class="btn hide" id="updGo" onclick="applyUpd()">⬇️ نزّل النسخة الجديدة</button></div>
   </div>
   <div class="card">
     <h3>دخول الأكسسات (SSH)</h3>
@@ -244,16 +244,16 @@ async function saveCfg(){
 async function checkUpd(manual){if(!NATIVE)return;if(manual)$('updSt').textContent='بدوّر على تحديث...';
   let v;try{v=await api('upd_check')}catch(e){return}
   if(v.error){if(manual)$('updSt').textContent=v.error;return}
-  if(v.newer){$('updTxt').textContent='🎉 فيه إصدار جديد '+v.name;$('updBar').style.display='flex';
-    $('updSt').innerHTML='فيه إصدار جديد <b class="ltr">'+esc(v.name)+'</b>'+(v.notes?'<br>الجديد: '+esc(v.notes):'');$('updGo').classList.remove('hide')}
-  else if(manual)$('updSt').textContent='✅ عندك أحدث إصدار';}
-window.__updProg=p=>{const e=$('updSt');if(e)e.textContent='بنزّل التحديث... '+p+'%'};
-async function applyUpd(){document.querySelector('nav button[data-t=set]').click();$('updGo').disabled=true;$('updSt').textContent='بنزّل التحديث...';
-  let r;try{r=await api('upd_go')}catch(e){return}finally{$('updGo').disabled=false}
-  if(r.error)$('updSt').textContent=r.error;
-  else if(r.need_permission)$('updSt').textContent='فعّل «السماح من هذا المصدر» للبرنامج من الشاشة اللي فتحت، وارجع دوس «حدّث دلوقتي» تاني.';
-  else $('updSt').textContent='✅ التحديث اتنزل. دوس «تثبيت» في الشاشة اللي ظهرت.';}
-async function init(){if(NATIVE){document.querySelectorAll('.pcOnly').forEach(e=>e.remove());try{$('curVer').textContent=Android.appVersion()}catch(e){}setTimeout(()=>checkUpd(false),2500)}else document.querySelectorAll('.nativeOnly').forEach(e=>e.remove());try{await loadCfg();$('app').classList.remove('hide');$('pinBox').classList.add('hide')}catch(e){}}
+  if(v.updated){$('updSt').textContent='✅ اتحدّث للإصدار '+v.name+'، بيعيد الفتح...';return}
+  if(v.apk){NEWAPK=v.url;const bb=$('updBar').querySelector('button');bb.textContent='نزّل';bb.onclick=applyUpd;$('updTxt').textContent='🎉 فيه إصدار جديد '+v.name+' محتاج يتنزّل';$('updBar').style.display='flex';
+    $('updSt').innerHTML='الإصدار <b class="ltr">'+esc(v.name)+'</b> محتاج تنزّله من المتصفح وتثبّته فوق القديم.'+(v.notes?'<br>الجديد: '+esc(v.notes):'');$('updGo').classList.remove('hide');return}
+  if(manual)$('updSt').textContent='✅ عندك أحدث إصدار';}
+let NEWAPK=null;
+function applyUpd(){if(NEWAPK)Android.openLink(NEWAPK);else checkUpd(true)}
+function showJustUpdated(){try{const j=Android.justUpdated();if(!j)return;const v=JSON.parse(j);
+  $('updTxt').textContent='🎉 اتحدّث البرنامج للإصدار '+v.name+(v.notes?' — '+v.notes:'');$('updBar').style.display='flex';
+  $('updBar').querySelector('button').textContent='تمام';$('updBar').querySelector('button').onclick=()=>$('updBar').style.display='none'}catch(e){}}
+async function init(){if(NATIVE){document.querySelectorAll('.pcOnly').forEach(e=>e.remove());try{$('curVer').textContent=Android.appVersion()}catch(e){}showJustUpdated();setTimeout(()=>checkUpd(false),2500)}else document.querySelectorAll('.nativeOnly').forEach(e=>e.remove());try{await loadCfg();$('app').classList.remove('hide');$('pinBox').classList.add('hide')}catch(e){}}
 init();
 </script>
 </body>
