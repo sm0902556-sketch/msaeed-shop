@@ -302,7 +302,9 @@ async function usersRender(){const box=$('usersCard');if(!box)return;let me={};t
    (own?`<div style="border-top:1px solid var(--line);margin:10px 0"></div>`+list.map(u=>`<div class="gh" style="display:block;border-right-color:${u.off?'var(--bad)':'var(--ok)'}">
      <div style="font-size:16px">👤 <b class="ltr">${esc(u.name)}</b> <span class="tag" style="direction:rtl">${u.owner?'المدير':'عميل'}</span>${u.off?' <span style="color:var(--bad)">⛔ موقوف</span>':''}</div>
      ${u.owner?'':`<div class="row" style="margin-top:8px">${u.off?`<button class="btn" style="padding:7px;font-size:13px" onclick="uOff('${esc(u.name)}',false)">✅ تشغيل</button>`:`<button class="btn red" style="padding:7px;font-size:13px" onclick="uOff('${esc(u.name)}',true)">⛔ إيقاف</button>`}
-       <button class="btn ghost" style="padding:7px;font-size:13px" onclick="uPass('${esc(u.name)}')">🔑 باسورد</button><button class="btn ghost" style="padding:7px;font-size:13px" onclick="uDel('${esc(u.name)}')">مسح</button></div>`}</div>`).join('')+
+       <button class="btn ghost" style="padding:7px;font-size:13px" onclick="uPassForm('${esc(u.name)}')">🔑 باسورد</button><button class="btn ghost" style="padding:7px;font-size:13px" onclick="uDel('${esc(u.name)}')">مسح</button></div>
+       <div id="up_${esc(u.name)}" class="hide" style="margin-top:8px"><label>الباسورد الجديد لـ <b class="ltr">${esc(u.name)}</b> (6 على الأقل)</label><input type="text" autocapitalize="off" autocomplete="off" style="direction:ltr;text-align:left" id="upi_${esc(u.name)}">
+       <div style="height:6px"></div><button class="btn" style="padding:8px;font-size:14px" onclick="uPass('${esc(u.name)}',this)">حفظ الباسورد</button></div>`}</div>`).join('')+
      `<button class="btn big" style="margin-top:12px" onclick="uAddForm()">+ مستخدم جديد</button>
      <div id="uAdd" class="hide" style="margin-top:10px"><label>اسم العميل (إنجليزي أو أرقام، من غير مسافات)</label><input id="uN" autocapitalize="off" placeholder="ahmed" style="direction:ltr;text-align:left"><div style="font-size:12px;color:var(--mut)">الباسورد 6 حروف أو أرقام على الأقل</div><label>الباسورد بتاعه</label><input id="uP" type="password">
        <div style="height:8px"></div><button class="btn" onclick="uAdd()">إضافة العميل</button></div>`:'')+
@@ -314,7 +316,10 @@ function uAddForm(){$('uAdd').classList.toggle('hide');setTimeout(()=>$('uN').fo
 async function uAdd(){const n=$('uN').value.trim(),p=$('uP').value;const e=await LK.add(n,p);if(e)return toast(e);toast('✅ اتضاف العميل '+n);usersRender()}
 async function uOff(n,off){if(!confirm((off?'إيقاف':'تشغيل')+' حساب «'+n+'»؟'+(off?' (مش هيقدر يدخل البرنامج)':'')))return;const e=await LK.off(n,off);if(e)return toast(e);toast(off?'⛔ اتوقف '+n:'✅ اتشغّل '+n);usersRender()}
 async function uDel(n){if(!confirm('امسح حساب «'+n+'» خالص؟'))return;const e=await LK.del(n);if(e)return toast(e);toast('اتمسح');usersRender()}
-async function uPass(n){const p=prompt('الباسورد الجديد لـ «'+n+'»:');if(!p)return;const e=await LK.pass(n,'',p);if(e)return toast(e);toast('✅ اتغيّر باسورد '+n)}
+function uPassForm(n){const b=$('up_'+n);b.classList.toggle('hide');if(!b.classList.contains('hide'))setTimeout(()=>$('upi_'+n).focus(),50)}
+async function uPass(n,btn){const p=$('upi_'+n).value.trim();if(p.length<6)return toast('الباسورد لازم يبقى 6 حروف أو أرقام على الأقل');
+  btn.disabled=true;btn.textContent='بيتحفظ...';let e;try{e=await LK.pass(n,'',p)}catch(x){e=(x&&x.message)||'حصلت مشكلة'}btn.disabled=false;btn.textContent='حفظ الباسورد';
+  if(e)return toast('❌ '+e);toast('✅ اتغيّر باسورد '+n+' — يدخل بالباسورد الجديد');usersRender()}
 async function lkChange(me){const o=$('ak_old').value,n=$('ak_new').value;if(n!==$('ak_new2').value)return toast('الباسورد الجديد مش زي بعض');
   const e=await LK.pass(me,o,n);if(e)return toast(e);['ak_old','ak_new','ak_new2'].forEach(i=>$(i).value='');toast('✅ الباسورد اتغيّر')}
 async function lkOut(){await LK.logout();showLock('locked')}
