@@ -100,6 +100,15 @@ public class Engine {
                 return p.toString();
             }
             case "diag": return diag(b.optString("ip")).toString();
+            case "ap_action": {
+                String ip = b.optString("ip"), act = b.optString("action");
+                if (!IP.matcher(ip).matches()) return err("IP غلط");
+                String cmd = "wifi".equals(act) ? "(sleep 1; wifi) >/dev/null 2>&1 </dev/null & echo DONE_OK"
+                           : "reboot".equals(act) ? "(sleep 1; reboot) >/dev/null 2>&1 </dev/null & echo DONE_OK" : null;
+                if (cmd == null) return err("أمر غير معروف");
+                Res r = ssh(ip, cmd, null, 20000);
+                return (r.ok && r.out.contains("DONE_OK")) ? "{\"ok\":true}" : err(r.err.isEmpty() ? "مارجعش رد" : r.err);
+            }
             case "mt_test": {
                 try (Ros r = mtOpen()) {
                     List<Map<String, String>> id = r.run("/system/identity/print");
@@ -300,6 +309,7 @@ public class Engine {
     static final String SCAN_CMD =
         "echo \"H $(uci -q get system.@system[0].hostname || cat /proc/sys/kernel/hostname)\"\n" +
         "[ -x /usr/sbin/msaeed-ghost ] && echo \"G 1\"\n" +
+        "echo \"U $(cut -d. -f1 /proc/uptime) $(cut -d' ' -f1 /proc/loadavg) $(awk '/MemAvailable/{a=$2}/MemTotal/{t=$2}END{print a+0,t+0}' /proc/meminfo) $(ubus list 'hostapd.*' 2>/dev/null | wc -l) $(dmesg 2>/dev/null | tail -300 | grep -ciE 'mcu.*time.?out|tx hang|firmware.*(crash|error)|watchdog') $(iw dev 2>/dev/null | grep -c Interface)\"\n" +
         "for i in $(iw dev 2>/dev/null | awk '$1==\"Interface\"{print $2}'); do\n" +
         "  if [ -e /sys/class/net/$i/brport/port_no ]; then\n" +
         "    echo \"I $i $(basename $(readlink /sys/class/net/$i/brport/bridge)) $(($(cat /sys/class/net/$i/brport/port_no)))\"\n" +
@@ -313,7 +323,7 @@ public class Engine {
 
     static class Sta { String iface, mac, signal, ip, host; int inactive, connected; boolean wired; }
     static class Iface { String br; int port; }
-    static class AP { String ip, host = "", err = ""; boolean ok, installed; Map<String, Iface> ifaces = new LinkedHashMap<>(); List<Sta> st = new ArrayList<>(); Map<String, Integer> fdb = new HashMap<>(); }
+    static class AP { String ip, host = "", err = ""; boolean ok, installed; long up; double load; int memA, memT, hapd, derr, wifi = -1; Map<String, Iface> ifaces = new LinkedHashMap<>(); List<Sta> st = new ArrayList<>(); Map<String, Integer> fdb = new HashMap<>(); }
 
     static AP parse(Res r) {
         AP ap = new AP(); ap.ip = r.ip; ap.ok = r.ok; ap.err = r.err;
@@ -325,6 +335,7 @@ public class Engine {
                 switch (p[0]) {
                     case "H": ap.host = line.trim().substring(1).trim(); break;
                     case "G": ap.installed = true; break;
+                    case "U": if (p.length >= 8) { ap.up = Long.parseLong(p[1]); ap.load = Double.parseDouble(p[2]); ap.memA = parseInt(p[3]); ap.memT = parseInt(p[4]); ap.hapd = parseInt(p[5]); ap.derr = parseInt(p[6]); ap.wifi = parseInt(p[7]); } break;
                     case "I": if (p.length >= 4) { Iface f = new Iface(); f.br = p[2]; f.port = Integer.parseInt(p[3]); ap.ifaces.put(p[1], f); } break;
                     case "S": if (p.length >= 6) { Sta s = new Sta(); s.iface = p[1]; s.mac = p[2].toLowerCase(); s.inactive = parseInt(p[3]); s.signal = p[4]; s.connected = parseInt(p[5]); ap.st.add(s); } break;
                     case "F": if (p.length >= 4) ap.fdb.put(p[1] + " " + p[2], Integer.parseInt(p[3], 16)); break;
@@ -393,7 +404,7 @@ public class Engine {
             if (!ap.ok) { failed.put(new JSONObject().put("ip", ap.ip).put("err", ap.err).put("raw", r.raw)); continue; }
             ok.add(ap);
             if (ap.installed) installed++;
-            apList.put(new JSONObject().put("ip", ap.ip).put("host", ap.host).put("n", ap.st.size()).put("installed", ap.installed));
+            apList.put(new JSONObject().put("ip", ap.ip).put("host", ap.host).put("n", ap.st.size()).put("installed", ap.installed).put("up", ap.up).put("load", ap.load).put("memA", ap.memA).put("memT", ap.memT).put("hapd", ap.hapd).put("derr", ap.derr).put("wifi", ap.wifi));
         }
         Map<String, List<Sta>> byMac = new LinkedHashMap<>();
         for (AP ap : ok) for (Sta s : ap.st) byMac.computeIfAbsent(s.mac, k -> new ArrayList<>()).add(s);

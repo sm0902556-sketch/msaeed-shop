@@ -115,6 +115,7 @@ const ipSort = (a, b) => a.split('.').map(Number).reduce((s, n, i) => s || n - b
 const SCAN_CMD = `
 echo "H $(uci -q get system.@system[0].hostname || cat /proc/sys/kernel/hostname)"
 [ -x /usr/sbin/msaeed-ghost ] && echo "G 1"
+echo "U $(cut -d. -f1 /proc/uptime) $(cut -d' ' -f1 /proc/loadavg) $(awk '/MemAvailable/{a=$2}/MemTotal/{t=$2}END{print a+0,t+0}' /proc/meminfo) $(ubus list 'hostapd.*' 2>/dev/null | wc -l) $(dmesg 2>/dev/null | tail -300 | grep -ciE 'mcu.*time.?out|tx hang|firmware.*(crash|error)|watchdog') $(iw dev 2>/dev/null | grep -c Interface)"
 for i in $(iw dev 2>/dev/null | awk '$1=="Interface"{print $2}'); do
   if [ -e /sys/class/net/$i/brport/port_no ]; then
     echo "I $i $(basename $(readlink /sys/class/net/$i/brport/bridge)) $(($(cat /sys/class/net/$i/brport/port_no)))"
@@ -133,6 +134,7 @@ function parseAP(r) {
     const p = line.trim().split(/\s+/);
     if (p[0] === 'H') ap.host = p.slice(1).join(' ');
     else if (p[0] === 'G') ap.installed = true;
+    else if (p[0] === 'U' && p.length >= 8) Object.assign(ap, { up: +p[1], load: +p[2], memA: +p[3], memT: +p[4], hapd: +p[5], derr: +p[6], wifi: +p[7] });
     else if (p[0] === 'I' && p.length >= 4) ap.ifaces[p[1]] = { br: p[2], port: +p[3] };
     else if (p[0] === 'S' && p.length >= 6) ap.stations.push({ iface: p[1], mac: p[2].toLowerCase(), inactive: +p[3] || 0, signal: p[4], connected: +p[5] || 0 });
     else if (p[0] === 'F' && p.length >= 4) ap.fdb[p[1] + ' ' + p[2]] = parseInt(p[3], 16);
@@ -200,7 +202,7 @@ async function scan(ranges, rediscover) {
     failed: aps.filter(a => !a.ok).map(a => ({ ip: a.ip, err: a.err, raw: a.raw })),
     installed: ok.filter(a => a.installed).length,
     clients: an.clients, ghosts: an.ghosts, dups: an.dups, all,
-    aps: ok.map(a => ({ ip: a.ip, host: a.host, n: a.stations.length, installed: a.installed }))
+    aps: ok.map(a => ({ ip: a.ip, host: a.host, n: a.stations.length, installed: a.installed, up: a.up, load: a.load, memA: a.memA, memT: a.memT, hapd: a.hapd, derr: a.derr, wifi: a.wifi ?? -1 }))
   };
 }
 
@@ -431,6 +433,14 @@ const server = http.createServer(async (req, res) => {
       }
       return send(res, { config: { ...cfg, password: '', mt_pass: '', aps: undefined }, has_password: !!cfg.password, has_mt_password: !!cfg.mt_pass, ap_count: cfg.aps.length, urls: lanUrls() });
     case '/api/mt_test': try { const r = await mtOpen(); const id = await r.run('/system/identity/print'); r.close(); return send(res, { ok: true, name: (id[0] || {}).name }); } catch (e) { return send(res, { error: e.message }); }
+    case '/api/ap_action': {
+      const ip = String(b.ip || ''), act = b.action;
+      if (!reIp.test(ip)) return send(res, { error: 'IP غلط' });
+      const cmd = act === 'wifi' ? '(sleep 1; wifi) >/dev/null 2>&1 </dev/null & echo DONE_OK' : act === 'reboot' ? '(sleep 1; reboot) >/dev/null 2>&1 </dev/null & echo DONE_OK' : null;
+      if (!cmd) return send(res, { error: 'أمر غير معروف' });
+      const r = await sshRun(ip, cmd, null, 20000);
+      return send(res, r.ok && r.out.includes('DONE_OK') ? { ok: true } : { error: r.err || 'مارجعش رد' });
+    }
     case '/api/diag': return send(res, await diag(String(b.ip || '')));
     case '/api/discover': return guard(res, async () => { const f = await discover(ranges); return { found: f.length, total: cfg.aps.length }; });
     case '/api/scan': return guard(res, () => scan(ranges, !!b.rediscover));
