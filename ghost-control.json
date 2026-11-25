@@ -1,5 +1,7 @@
 {
   "message": "البرنامج متوقف. كلّم المبرمج محمد سعيد على واتساب 01123840671",
-  "blocked": [
-  ]
+  "allowlist": true,
+  "allowed": [],
+  "blocked": [],
+  "customers": {}
 }

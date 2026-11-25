@@ -31,16 +31,19 @@ public class License {
             StringBuilder s = new StringBuilder("MS-");
             for (int i = 0; i < 6; i++) s.append(abc.charAt(r.nextInt(abc.length())));
             id = s.toString();
-            p(c).edit().putString("id", id).putLong("lastOk", System.currentTimeMillis()).apply();
+            // جهاز جديد: مقفول لحد أول تحقق ناجح
+            p(c).edit().putString("id", id).putLong("lastOk", System.currentTimeMillis()).putBoolean("checked", false).apply();
         }
         return id;
     }
 
-    // ok | blocked | offline
+    // ok | blocked | pending | offline
     static String state(Context c) {
         id(c);
         SharedPreferences s = p(c);
         if (s.getBoolean("blocked", false)) return "blocked";
+        if (!s.getBoolean("checked", true)) return "pending";                       // جهاز جديد ماتحققش لسه
+        if (s.getBoolean("allowlist", false) && !s.getBoolean("approved", false)) return "pending";  // مستني تفعيل
         if (System.currentTimeMillis() - s.getLong("lastOk", 0) > GRACE) return "offline";
         return "ok";
     }
@@ -54,6 +57,11 @@ public class License {
         } catch (Exception e) { return "{}"; }
     }
 
+    static boolean has(JSONArray a, String me) {
+        for (int i = 0; a != null && i < a.length(); i++) if (me.equalsIgnoreCase(a.optString(i).trim())) return true;
+        return false;
+    }
+
     // بيشيّك على الملف؛ لو مفيش نت بيسيب الحالة زي ما هي
     static String check(Context c) {
         String me = id(c);
@@ -64,10 +72,11 @@ public class License {
             ByteArrayOutputStream b = new ByteArrayOutputStream();
             try (InputStream in = h.getInputStream()) { byte[] buf = new byte[4096]; int n; while ((n = in.read(buf)) > 0) b.write(buf, 0, n); }
             JSONObject j = new JSONObject(b.toString("UTF-8"));
-            JSONArray bl = j.optJSONArray("blocked");
-            boolean blocked = false;
-            for (int i = 0; bl != null && i < bl.length(); i++) if (me.equalsIgnoreCase(bl.optString(i).trim())) blocked = true;
-            p(c).edit().putBoolean("blocked", blocked).putLong("lastOk", System.currentTimeMillis())
+            boolean blocked = has(j.optJSONArray("blocked"), me);
+            boolean allowlist = j.optBoolean("allowlist", false);
+            boolean approved = has(j.optJSONArray("allowed"), me);
+            p(c).edit().putBoolean("blocked", blocked).putBoolean("allowlist", allowlist).putBoolean("approved", approved)
+                    .putBoolean("checked", true).putLong("lastOk", System.currentTimeMillis())
                     .putString("msg", j.optString("message", DEF_MSG)).apply();
         } catch (Exception e) { }
         return info(c);

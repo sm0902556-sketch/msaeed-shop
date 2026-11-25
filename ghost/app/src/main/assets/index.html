@@ -72,7 +72,12 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
   <div style="font-size:48px">⛔</div>
   <h3 style="color:var(--bad);font-size:19px" id="stTitle">البرنامج متوقف</h3>
   <div id="stMsg" style="line-height:1.9;margin:8px 0"></div>
-  <div style="color:var(--mut);font-size:13px">رقم الجهاز</div><div class="ltr" id="stId" style="font-size:22px;color:var(--gold2);margin:4px 0 12px"></div>
+  <div style="color:var(--mut);font-size:13px">رقم الجهاز</div><div class="ltr" id="stId" onclick="stTap()" style="font-size:22px;color:var(--gold2);margin:4px 0 12px;user-select:none"></div>
+  <div id="stAdm" class="hide" style="text-align:right;border:1px dashed var(--gold);border-radius:10px;padding:10px;margin-bottom:10px">
+    <div style="color:var(--gold2);margin-bottom:6px">🔐 تفعيل جهاز المبرمج</div>
+    <div id="stTokBox"><label>مفتاح GitHub</label><input id="stTok" type="password" placeholder="github_pat_..."></div>
+    <button class="btn" style="width:100%;margin-top:8px" onclick="activateSelf()">✅ فعّل الجهاز ده</button><div id="stAdmMsg"></div>
+  </div>
   <a class="btn big" style="display:block;text-decoration:none" id="stWa" href="https://wa.me/201123840671" target="_blank">💬 كلّم المبرمج محمد سعيد على واتساب</a>
   <button class="btn ghost" style="width:100%;margin-top:8px" onclick="licRetry()">🔄 إعادة التحقق</button>
 </div></main></div>
@@ -177,7 +182,7 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
   </div>
   <button class="btn big" onclick="saveCfg()">حفظ</button>
   <div class="card hide" id="admCard" style="margin-top:14px">
-    <details id="admDet" ontoggle="if(this.open)admLoad()"><summary style="font-size:16px">🔐 لوحة المبرمج (إيقاف العملاء)</summary><div style="padding:0 12px 12px">
+    <details id="admDet" ontoggle="if(this.open)admLoad().catch(()=>{})"><summary style="font-size:16px">🔐 لوحة المبرمج (إيقاف العملاء)</summary><div style="padding:0 12px 12px">
       <div id="admNoKey">
         <div style="font-size:13px;color:var(--mut);line-height:1.8">اللوحة دي بتشتغل بمفتاح GitHub بتاعك، وبيتحفظ على الجهاز ده بس. حطه على موبايلك انت بس، مش على أجهزة العملاء.</div>
         <label>مفتاح GitHub (Token)</label><input id="admTok" type="password" placeholder="github_pat_...">
@@ -191,7 +196,7 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
         <div id="admList" style="margin-top:6px"></div>
         <div style="margin-top:12px;color:var(--gold2)">إضافة عميل</div>
         <div class="row"><input id="admName" placeholder="اسم العميل" style="direction:rtl;text-align:right"><input id="admId" placeholder="MS-XXXXXX"></div>
-        <div class="row" style="margin-top:8px"><button class="btn" onclick="admAdd()">➕ إضافة</button><button class="btn ghost" onclick="admLoad()">🔄 تحديث</button></div>
+        <div class="row" style="margin-top:8px"><button class="btn" onclick="admAdd()">➕ إضافة</button><button class="btn ghost" onclick="admLoad().catch(()=>{})">🔄 تحديث</button></div>
         <div style="font-size:12px;color:var(--mut);margin-top:10px;line-height:1.7">رقم جهاز العميل بيظهر في برنامجه في الإعدادات ← الحساب. الإيقاف أو التشغيل بيوصل لبرنامج العميل خلال حوالي 5 دقايق، أو أول ما يفتحه.</div>
         <button class="btn ghost" style="margin-top:10px;font-size:13px;padding:8px" onclick="admForget()">مسح المفتاح من الجهاز ده</button>
       </div>
@@ -226,9 +231,20 @@ function licLocal(){try{return NATIVE?(Android.licInfo?JSON.parse(Android.licInf
 async function licFetch(check){if(NATIVE){if(!Android.licCheck)return licLocal();return JSON.parse(await new Promise(res=>{const id='c'+(++_cid);_cbs[id]=res;Android.licCheck(id)}))}
   return await rawApi('lic',check?{}:undefined)}
 function showStop(i){$('app').classList.add('hide');$('lockBox').classList.add('hide');$('stopBox').classList.remove('hide');
-  $('stTitle').textContent=i.state==='offline'?'البرنامج محتاج يتصل بالنت':'البرنامج متوقف';
-  $('stMsg').textContent=i.state==='offline'?'البرنامج ماقدرش يتأكد من الاشتراك بقاله أكتر من 10 أيام. وصّل الموبايل بالنت ودوس «إعادة التحقق».':(i.msg||'');
-  $('stId').textContent=i.id||'';$('stWa').href='https://wa.me/201123840671?text='+encodeURIComponent('رقم الجهاز: '+(i.id||''))}
+  const P=i.state==='pending';
+  $('stTitle').textContent=i.state==='offline'?'البرنامج محتاج يتصل بالنت':P?'البرنامج محتاج تفعيل':'البرنامج متوقف';
+  $('stMsg').textContent=i.state==='offline'?'البرنامج ماقدرش يتأكد من الاشتراك بقاله أكتر من 10 أيام. وصّل الموبايل بالنت ودوس «إعادة التحقق».'
+    :P?'الجهاز ده لسه مش متفعّل. ابعت رقم الجهاز للمبرمج محمد سعيد عشان يفعّله، وبعدها دوس «إعادة التحقق». (أول مرة لازم الموبايل يكون متوصل بالنت)':(i.msg||'');
+  $('stId').textContent=i.id||'';
+  $('stWa').href='https://wa.me/201123840671?text='+encodeURIComponent((P?'عايز أفعّل برنامج فحص عميل معلق — ':'')+'رقم الجهاز: '+(i.id||''))}
+let stTaps=0,stTapT=0;
+function stTap(){const n=Date.now();if(n-stTapT>1500)stTaps=0;stTapT=n;if(++stTaps>=7){stTaps=0;$('stAdm').classList.remove('hide');$('stTokBox').classList.toggle('hide',!!admKey())}}
+async function activateSelf(){const k=$('stTok').value.trim();if(k)try{localStorage.setItem('gh_tok',k);localStorage.setItem('adm_on','1')}catch(e){}
+  const m=$('stAdmMsg'),id=LIC.id;if(!admKey())return m.innerHTML='<div class="diag bad">حط مفتاح GitHub الأول</div>';
+  m.innerHTML='<div class="diag info"><span class="spin"></span> بفعّل الجهاز...</div>';
+  try{await admLoad(true);await admSave(d=>{if(!d.allowed.includes(id))d.allowed.push(id);d.blocked=d.blocked.filter(x=>x!==id);if(!d.customers[id])d.customers[id]='جهاز المبرمج'},'');
+    m.innerHTML='<div class="diag ok">✅ اتفعّل. بتحقق دلوقتي... لو لسه مقفول استنى دقيقة ودوس «إعادة التحقق».</div>';setTimeout(licRetry,3000)}
+  catch(e){m.innerHTML='<div class="diag bad">'+esc(e.message||'حصلت مشكلة')+'</div>'}}
 async function licGate(force){let i=licLocal();if(!i||force)i=await licFetch(false);LIC=i;
   if(i.state!=='ok'){showStop(i);return false}
   const chk=()=>licFetch(true).then(n=>{LIC=n;if(n.state!=='ok')showStop(n);else if($('accId'))$('accId').textContent=n.id}).catch(()=>{});
@@ -517,7 +533,7 @@ const admKey=()=>{try{return localStorage.getItem('gh_tok')||''}catch(e){return 
 const b64e=t=>btoa(unescape(encodeURIComponent(t))),b64d=t=>decodeURIComponent(escape(atob(t.replace(/\s/g,''))));
 async function ghReq(method,body){const r=await fetch(ADM_URL+(method==='GET'?'?ref='+ADM_REF+'&t='+Date.now():''),{method,headers:{Authorization:'Bearer '+admKey(),Accept:'application/vnd.github+json'},body:body?JSON.stringify(body):undefined});
   const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(r.status===401?'المفتاح غلط أو خلصت مدته':r.status===404?'المفتاح مالوش صلاحية على msaeed-shop':r.status===409?'الملف اتغيّر، اعمل تحديث وجرّب تاني':(j.message||('HTTP '+r.status)));return j}
-function admMsg(cls,t){$('admMsg').innerHTML=t?`<div class="diag ${cls}">${esc(t)}</div>`:''}
+function admMsg(cls,t){if($('admMsg'))$('admMsg').innerHTML=t?`<div class="diag ${cls}">${esc(t)}</div>`:''}
 function admHowKey(){$('admHow').classList.toggle('hide')}
 async function admSaveKey(){const k=$('admTok').value.trim();if(!k)return;try{localStorage.setItem('gh_tok',k)}catch(e){}$('admTok').value='';
   try{await admLoad();toast('✅ المفتاح شغال')}catch(e){}}
@@ -527,25 +543,25 @@ function admShow(){let on=false;try{on=!!localStorage.getItem('gh_tok')||!!local
 let admTaps=0,admTapT=0;
 function admTap(){const n=Date.now();if(n-admTapT>1500)admTaps=0;admTapT=n;if(++admTaps>=7){admTaps=0;try{localStorage.setItem('adm_on','1')}catch(e){}admShow();
   document.querySelector('nav button[data-t=set]').click();setTimeout(()=>{$('admCard').scrollIntoView({block:'start'});$('admDet').open=true},200);toast('🔐 لوحة المبرمج ظهرت')}}
-async function admLoad(){if(!admKey()){admRender();return}admMsg('info','بحمّل قايمة العملاء...');
-  try{const j=await ghReq('GET');const d=JSON.parse(b64d(j.content));ADM={sha:j.sha,data:{message:d.message||'',blocked:d.blocked||[],customers:d.customers||{}}};admMsg('','');admRender()}
-  catch(e){admMsg('bad',e.message);ADM=null;admRender(true)}}
-function admRender(keepKey){const has=!!admKey()&&!!ADM;$('admNoKey').classList.toggle('hide',has);$('admPanel').classList.toggle('hide',!has);if(!has)return;
-  const d=ADM.data,ids=[...new Set([...Object.keys(d.customers),...d.blocked])];
-  $('admList').innerHTML=ids.length?ids.map(id=>{const st=d.blocked.includes(id);return `<div class="gh" style="display:block;border-right-color:${st?'var(--bad)':'var(--ok)'}">
-    <div><b>${esc(d.customers[id]||'بدون اسم')}</b> — <span class="ltr" style="color:var(--gold2)">${esc(id)}</span> — ${st?'<span style="color:var(--bad)">⛔ موقوف</span>':'<span style="color:var(--ok)">✅ شغال</span>'}</div>
-    <div class="row" style="margin-top:8px">${st?`<button class="btn" style="padding:7px;font-size:13px" onclick="admSet('${esc(id)}',false)">✅ تشغيل</button>`:`<button class="btn red" style="padding:7px;font-size:13px" onclick="admSet('${esc(id)}',true)">⛔ إيقاف</button>`}
+async function admLoad(silent){if(!admKey()){admRender();return}admMsg('info','بحمّل قايمة العملاء...');
+  try{const j=await ghReq('GET');const d=JSON.parse(b64d(j.content));ADM={sha:j.sha,data:{message:d.message||'',allowlist:true,allowed:d.allowed||[],blocked:d.blocked||[],customers:d.customers||{}}};admMsg('','');admRender()}
+  catch(e){admMsg('bad',e.message);ADM=null;admRender(true);throw e}}
+function admRender(keepKey){if(!$('admNoKey'))return;const has=!!admKey()&&!!ADM;$('admNoKey').classList.toggle('hide',has);$('admPanel').classList.toggle('hide',!has);if(!has)return;
+  const d=ADM.data,ids=[...new Set([...Object.keys(d.customers),...d.allowed,...d.blocked])];
+  $('admList').innerHTML=ids.length?ids.map(id=>{const st=d.blocked.includes(id)||!d.allowed.includes(id);return `<div class="gh" style="display:block;border-right-color:${st?'var(--bad)':'var(--ok)'}">
+    <div><b>${esc(d.customers[id]||'بدون اسم')}</b> — <span class="ltr" style="color:var(--gold2)">${esc(id)}</span> — ${st?'<span style="color:var(--bad)">⛔ موقوف</span>':'<span style="color:var(--ok)">✅ متفعّل</span>'}</div>
+    <div class="row" style="margin-top:8px">${st?`<button class="btn" style="padding:7px;font-size:13px" onclick="admSet('${esc(id)}',false)">✅ تفعيل</button>`:`<button class="btn red" style="padding:7px;font-size:13px" onclick="admSet('${esc(id)}',true)">⛔ إيقاف</button>`}
     <button class="btn ghost" style="padding:7px;font-size:13px" onclick="admDel('${esc(id)}')">مسح</button></div></div>`}).join(''):'<div class="diag info">لسه مفيش عملاء. ضيف أول عميل تحت.</div>'}
 async function admSave(fn,ok){if(!ADM)return;const d=JSON.parse(JSON.stringify(ADM.data));fn(d);admMsg('info','بحفظ على GitHub...');
-  try{const txt=JSON.stringify({message:d.message,blocked:d.blocked,customers:d.customers},null,2)+'\n';
-    const r=await ghReq('PUT',{message:'لوحة المبرمج: تحديث العملاء',content:b64e(txt),sha:ADM.sha,branch:ADM_REF});ADM={sha:r.content.sha,data:d};admRender();admMsg('ok',ok)}
-  catch(e){admMsg('bad',e.message)}}
+  try{const txt=JSON.stringify({message:d.message,allowlist:true,allowed:d.allowed,blocked:d.blocked,customers:d.customers},null,2)+'\n';
+    const r=await ghReq('PUT',{message:'لوحة المبرمج: تحديث العملاء',content:b64e(txt),sha:ADM.sha,branch:ADM_REF});ADM={sha:r.content.sha,data:d};admRender();if(ok)admMsg('ok',ok)}
+  catch(e){admMsg('bad',e.message);throw e}}
 function admNorm(id){return String(id||'').trim().toUpperCase().replace(/^MS(?!-)/,'MS-')}
 async function admAdd(){const id=admNorm($('admId').value),name=$('admName').value.trim();if(!/^MS-[A-Z0-9]{6}$/.test(id))return toast('رقم الجهاز شكله كده: MS-7K2Q9F');
-  await admSave(d=>{d.customers[id]=name||d.customers[id]||''},'✅ اتضاف '+(name||id));$('admId').value='';$('admName').value=''}
+  await admSave(d=>{d.customers[id]=name||d.customers[id]||'';if(!d.allowed.includes(id))d.allowed.push(id);d.blocked=d.blocked.filter(x=>x!==id)},'✅ اتضاف واتفعّل '+(name||id)).catch(()=>{});$('admId').value='';$('admName').value=''}
 async function admSet(id,stop){const n=ADM.data.customers[id]||id;if(!confirm((stop?'إيقاف':'تشغيل')+' البرنامج عند «'+n+'»؟'))return;
-  await admSave(d=>{d.blocked=d.blocked.filter(x=>x!==id);if(stop)d.blocked.push(id)},stop?'⛔ اتوقف عند '+n+' — هيوصله خلال دقايق':'✅ اتشغّل عند '+n)}
-async function admDel(id){if(!confirm('امسح العميل ده من القايمة؟ (لو موقوف هيرجع يشتغل)'))return;await admSave(d=>{delete d.customers[id];d.blocked=d.blocked.filter(x=>x!==id)},'اتمسح')}
+  await admSave(d=>{d.blocked=d.blocked.filter(x=>x!==id);d.allowed=d.allowed.filter(x=>x!==id);if(stop)d.blocked.push(id);else d.allowed.push(id)},stop?'⛔ اتوقف عند '+n+' — هيوصله خلال دقايق':'✅ اتفعّل عند '+n).catch(()=>{})}
+async function admDel(id){if(!confirm('امسح العميل ده من القايمة؟ (البرنامج هيتقفل عنده لأنه مش متفعّل)'))return;await admSave(d=>{delete d.customers[id];d.blocked=d.blocked.filter(x=>x!==id);d.allowed=d.allowed.filter(x=>x!==id)},'اتمسح').catch(()=>{})}
 function toggleAll(){const box=$('allBox');if(box.innerHTML){box.innerHTML='';return}
   const gh=new Set(LAST.ghosts.map(g=>g.mac+'@'+g.ip));const by={};
   for(const x of LAST.all)(by[x.ip]=by[x.ip]||[]).push(x);

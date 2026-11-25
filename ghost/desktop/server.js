@@ -465,21 +465,24 @@ function body(req) {
 }
 const send = (res, obj, code = 200) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); };
 // ---------- إيقاف البرنامج عند عميل من بعيد (لو مادفعش) ----------
-const LIC_URL = 'https://raw.githubusercontent.com/sm0902556-sketch/msaeed-shop/ghost-hunter/ghost-control.json';
+const LIC_URL = process.env.GH_LIC_URL || 'https://raw.githubusercontent.com/sm0902556-sketch/msaeed-shop/ghost-hunter/ghost-control.json';
 const LIC_GRACE = 10 * 24 * 3600 * 1000, LIC_MSG = 'البرنامج متوقف. كلّم المبرمج محمد سعيد على واتساب 01123840671';
 function licId() {
   if (!cfg.device_id) { const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; cfg.device_id = 'MS-' + Array.from(crypto.randomBytes(6), b => abc[b % abc.length]).join('');
-    cfg.lic = { blocked: false, lastOk: Date.now(), msg: LIC_MSG }; save(); }
+    cfg.lic = { blocked: false, checked: false, lastOk: Date.now(), msg: LIC_MSG }; save(); }   // جهاز جديد: مقفول لحد أول تحقق
   return cfg.device_id;
 }
-function licState() { licId(); const l = cfg.lic || {}; return l.blocked ? 'blocked' : (Date.now() - (l.lastOk || 0) > LIC_GRACE ? 'offline' : 'ok'); }
+function licState() { licId(); const l = cfg.lic || {};
+  if (l.blocked) return 'blocked';
+  if (l.checked === false || (l.allowlist && !l.approved)) return 'pending';
+  return Date.now() - (l.lastOk || 0) > LIC_GRACE ? 'offline' : 'ok'; }
 const licInfo = () => ({ state: licState(), id: licId(), msg: (cfg.lic || {}).msg || LIC_MSG });
 async function licCheck() {
   const me = licId();
   try {
     const j = JSON.parse((await httpsGet(LIC_URL + '?t=' + Date.now())).toString('utf8'));
-    const blocked = (j.blocked || []).some(x => String(x).trim().toUpperCase() === me.toUpperCase());
-    cfg.lic = { blocked, lastOk: Date.now(), msg: j.message || LIC_MSG }; save();
+    const has = a => (a || []).some(x => String(x).trim().toUpperCase() === me.toUpperCase());
+    cfg.lic = { blocked: has(j.blocked), allowlist: !!j.allowlist, approved: has(j.allowed), checked: true, lastOk: Date.now(), msg: j.message || LIC_MSG }; save();
   } catch (e) {}
   return licInfo();
 }
