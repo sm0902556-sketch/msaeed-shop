@@ -114,7 +114,7 @@ const ipSort = (a, b) => a.split('.').map(Number).reduce((s, n, i) => s || n - b
 // ---------- scan ----------
 const SCAN_CMD = `
 echo "H $(uci -q get system.@system[0].hostname || cat /proc/sys/kernel/hostname)"
-[ -x /usr/sbin/msaeed-ghost ] && echo "G 1"
+[ -x /usr/sbin/msaeed-ghost ] && echo "G $(pgrep -f /usr/sbin/msaeed-ghost >/dev/null 2>&1 && echo 1 || echo 0) $(grep -o 'GHOST_VER=[0-9]*' /usr/sbin/msaeed-ghost | cut -d= -f2)"
 echo "U $(cut -d. -f1 /proc/uptime) $(cut -d' ' -f2 /proc/loadavg) $(awk '/MemAvailable/{a=$2}/MemTotal/{t=$2}END{print a+0,t+0}' /proc/meminfo) $(ubus list 'hostapd.*' 2>/dev/null | wc -l) $(dmesg 2>/dev/null | grep -ciE 'mcu.*(timeout|time ?out)|tx hang|firmware (crash|error)|wdt.*reset|message .* timeout') $(iw dev 2>/dev/null | grep -c 'type AP')"
 for i in $(iw dev 2>/dev/null | awk '$1=="Interface"{print $2}'); do
   if [ -e /sys/class/net/$i/brport/port_no ]; then
@@ -133,7 +133,7 @@ function parseAP(r) {
   for (const line of r.out.split('\n')) {
     const p = line.trim().split(/\s+/);
     if (p[0] === 'H') ap.host = p.slice(1).join(' ');
-    else if (p[0] === 'G') ap.installed = true;
+    else if (p[0] === 'G') { ap.installed = true; ap.running = p[1] !== '0'; ap.gver = +(p[2] || 1); }
     else if (p[0] === 'U' && p.length >= 8) Object.assign(ap, { up: +p[1], load: +p[2], memA: +p[3], memT: +p[4], hapd: +p[5], derr: +p[6], wifi: +p[7] });
     else if (p[0] === 'I' && p.length >= 4) ap.ifaces[p[1]] = { br: p[2], port: +p[3] };
     else if (p[0] === 'S' && p.length >= 6) ap.stations.push({ iface: p[1], mac: p[2].toLowerCase(), inactive: +p[3] || 0, signal: p[4], connected: +p[5] || 0 });
@@ -202,7 +202,7 @@ async function scan(ranges, rediscover) {
     failed: aps.filter(a => !a.ok).map(a => ({ ip: a.ip, err: a.err, raw: a.raw })),
     installed: ok.filter(a => a.installed).length,
     clients: an.clients, ghosts: an.ghosts, dups: an.dups, all,
-    aps: ok.map(a => ({ ip: a.ip, host: a.host, n: a.stations.length, installed: a.installed, up: a.up, load: a.load, memA: a.memA, memT: a.memT, hapd: a.hapd, derr: a.derr, wifi: a.wifi ?? -1 }))
+    aps: ok.map(a => ({ ip: a.ip, host: a.host, n: a.stations.length, installed: a.installed, running: !!a.running, gver: a.gver || 0, up: a.up, load: a.load, memA: a.memA, memT: a.memT, hapd: a.hapd, derr: a.derr, wifi: a.wifi ?? -1 }))
   };
 }
 
