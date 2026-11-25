@@ -188,6 +188,7 @@ function renderScan(){
   let h=`<div class="card"><div style="font-size:13px;color:var(--mut);margin-bottom:8px">اتفحص: <span class="ltr" style="color:var(--gold2)">${esc(j.ranges.map(r=>r+'.x').join('  '))}</span></div><div class="stats">
     <div class="stat"><b>${j.okCount}</b>أكسس اتفحص</div><div class="stat"><b>${j.clients}</b>عميل متوصل</div>
     <div class="stat ${j.ghosts.length?'red':''}"><b>${j.ghosts.length}</b>عميل شبح</div><div class="stat"><b>${j.installed}/${j.okCount}</b>عليهم السكريبت</div></div>`;
+  if(j.all.length)h+=`<button class="btn ghost" style="width:100%;margin-bottom:8px" onclick="toggleAll()">📋 كل العملاء على الرينج (${j.clients})</button><div id="allBox"></div>`;
   if(!j.scanned)h+='<div class="diag warn">⚠️ مالقيتش أي أكسس في الرينجات دي. اتأكد إنك على نفس الشبكة، أو علّم على «دوّر على الأكسسات من جديد».</div>';
   if(j.failed.length)h+=`<div class="diag warn">⚠️ ${j.failed.length} أكسس ماقدرتش أدخلهم (شوف التفاصيل تحت).</div>`;
   if(!j.ghosts.length&&j.okCount)h+='<div class="diag ok">✅ مفيش أي عميل شبح دلوقتي.</div>';
@@ -210,6 +211,17 @@ function renderScan(){
   h+='</div>';
   $('scanRes').innerHTML=h;
 }
+function toggleAll(){const box=$('allBox');if(box.innerHTML){box.innerHTML='';return}
+  const gh=new Set(LAST.ghosts.map(g=>g.mac+'@'+g.ip));const by={};
+  for(const x of LAST.all)(by[x.ip]=by[x.ip]||[]).push(x);
+  const ips=Object.keys(by).sort((a,b)=>a.split('.').map(Number)[3]-b.split('.').map(Number)[3]);
+  box.innerHTML=`<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn" style="flex:1;padding:8px" onclick="copyAll()">نسخ الكل</button></div>`+
+   ips.map(ip=>{const l=by[ip].sort((a,b)=>a.inactive-b.inactive);return `<details open><summary><span class="ltr">${esc(ip)}</span> ${esc(l[0].host)} — ${l.length} عميل</summary><div class="tw"><table><tr><th>MAC</th><th>wifi</th><th>signal</th><th>idle</th></tr>${l.map(x=>`<tr style="${gh.has(x.mac+'@'+x.ip)?'color:var(--bad)':''}"><td>${esc(x.mac)}</td><td>${esc(x.iface)}</td><td>${esc(x.signal)}</td><td>${sec(x.inactive)}</td></tr>`).join('')}</table></div></details>`}).join('')+
+   '<div style="font-size:12px;color:var(--mut)">الماك الأحمر = عميل شبح على الأكسس ده.</div>';}
+function copyAll(){const t=LAST.all.map(x=>`${x.mac}\t${x.ip}\t${x.host}\t${x.iface}\t${x.signal}`).join('\n');
+  const done=()=>toast('اتنسخ '+LAST.all.length+' ماك');
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(done,()=>fallbackCopy(t,done));else fallbackCopy(t,done)}
+function fallbackCopy(t,done){const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy');done()}catch(e){}a.remove()}
 function findMac(){
   const q=$('find').value.toLowerCase().replace(/[^0-9a-f]/g,'');if(q.length<2){$('findRes').innerHTML='';return}
   const r=LAST.all.filter(x=>x.mac.replace(/:/g,'').includes(q));
