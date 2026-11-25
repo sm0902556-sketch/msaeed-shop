@@ -464,6 +464,27 @@ function body(req) {
   return new Promise(r => { let d = ''; req.on('data', c => { d += c; if (d.length > 1e6) req.destroy(); }); req.on('end', () => { try { r(JSON.parse(d || '{}')); } catch (e) { r({}); } }); });
 }
 const send = (res, obj, code = 200) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); };
+// ---------- إيقاف البرنامج عند عميل من بعيد (لو مادفعش) ----------
+const LIC_URL = 'https://raw.githubusercontent.com/sm0902556-sketch/msaeed-shop/ghost-hunter/ghost-control.json';
+const LIC_GRACE = 10 * 24 * 3600 * 1000, LIC_MSG = 'البرنامج متوقف. كلّم المبرمج محمد سعيد على واتساب 01123840671';
+function licId() {
+  if (!cfg.device_id) { const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; cfg.device_id = 'MS-' + Array.from(crypto.randomBytes(6), b => abc[b % abc.length]).join('');
+    cfg.lic = { blocked: false, lastOk: Date.now(), msg: LIC_MSG }; save(); }
+  return cfg.device_id;
+}
+function licState() { licId(); const l = cfg.lic || {}; return l.blocked ? 'blocked' : (Date.now() - (l.lastOk || 0) > LIC_GRACE ? 'offline' : 'ok'); }
+const licInfo = () => ({ state: licState(), id: licId(), msg: (cfg.lic || {}).msg || LIC_MSG });
+async function licCheck() {
+  const me = licId();
+  try {
+    const j = JSON.parse((await httpsGet(LIC_URL + '?t=' + Date.now())).toString('utf8'));
+    const blocked = (j.blocked || []).some(x => String(x).trim().toUpperCase() === me.toUpperCase());
+    cfg.lic = { blocked, lastOk: Date.now(), msg: j.message || LIC_MSG }; save();
+  } catch (e) {}
+  return licInfo();
+}
+licCheck(); setInterval(licCheck, 6 * 3600 * 1000);
+
 // ---------- القفل: اسم المستخدم ثابت M saeed والباسورد بصمة PBKDF2 مش الباسورد نفسه ----------
 const LOCK_USER = 'M saeed';
 let lkFails = 0, lkBlocked = 0;
@@ -486,6 +507,8 @@ async function guard(res, fn) {
 const server = http.createServer(async (req, res) => {
   const u = req.url.split('?')[0];
   if (u === '/') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end(HTML); }
+  if (u === '/api/lic') return send(res, req.method === 'POST' ? await licCheck() : licInfo());
+  if (licState() !== 'ok' && u.startsWith('/api/') && !['/api/version', '/api/upd_check', '/api/upd_go'].includes(u)) return send(res, { error: 'stopped' }, 403);
   if (u === '/api/lock_state') return send(res, { state: !(cfg.lock && cfg.lock.hash) ? 'setup' : authed(req) ? 'open' : 'locked', user: LOCK_USER });
   if (u === '/api/lock_setup') {
     const b = await body(req);

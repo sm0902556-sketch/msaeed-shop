@@ -68,6 +68,14 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
 <header><div class="logo">M</div><div><h1>فحص عميل معلق</h1><small>المبرمج محمد سعيد — 01123840671</small></div><button id="refBtn" onclick="doRefresh()" title="تحديث">🔄</button></header>
 <div id="pullInd">⬇️ اسحب لتحت للتحديث</div>
 
+<div id="stopBox" class="hide"><main><div class="card" style="text-align:center;border-color:var(--bad)">
+  <div style="font-size:48px">⛔</div>
+  <h3 style="color:var(--bad);font-size:19px" id="stTitle">البرنامج متوقف</h3>
+  <div id="stMsg" style="line-height:1.9;margin:8px 0"></div>
+  <div style="color:var(--mut);font-size:13px">رقم الجهاز</div><div class="ltr" id="stId" style="font-size:22px;color:var(--gold2);margin:4px 0 12px"></div>
+  <a class="btn big" style="display:block;text-decoration:none" id="stWa" href="https://wa.me/201123840671" target="_blank">💬 كلّم المبرمج محمد سعيد على واتساب</a>
+  <button class="btn ghost" style="width:100%;margin-top:8px" onclick="licRetry()">🔄 إعادة التحقق</button>
+</div></main></div>
 <div id="lockBox" class="hide"><main><div class="card">
   <h3 id="lkTitle">تسجيل الدخول</h3>
   <div id="lkNote" style="font-size:13px;color:var(--mut);line-height:1.7;margin-bottom:6px"></div>
@@ -124,6 +132,7 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
   <div class="card">
     <h3>الحساب</h3>
     <div style="font-size:14px">انت داخل باسم <b class="ltr">M saeed</b></div>
+    <div style="font-size:14px;margin-top:6px">رقم الجهاز: <b class="ltr" id="accId" style="color:var(--gold2)"></b> <a style="color:var(--gold);cursor:pointer;font-size:13px" onclick="navigator.clipboard&&navigator.clipboard.writeText($('accId').textContent).then(()=>toast('اتنسخ'))">نسخ</a></div>
     <details style="margin-top:10px"><summary>تغيير الباسورد</summary><div style="padding:0 12px 12px">
       <label>الباسورد الحالي</label><input id="ak_old" type="password">
       <label>الباسورد الجديد</label><input id="ak_new" type="password">
@@ -185,9 +194,24 @@ async function api(p,b){
     try{return JSON.parse(r)}catch(e){return {error:'خطأ في البرنامج'}}}
   const r=await fetch('/api/'+p,{method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});
   const j=await r.json().catch(()=>({error:'البرنامج مش بيرد'}));
+  if(j.error==='stopped'){licGate(true);throw 0}
   if(j.error==='locked'||j.error==='need_pin'){showLock('locked');throw 0}
   return j;
 }
+// ---------- الإيقاف من بعيد (لو العميل مادفعش) ----------
+let LIC={state:'ok',id:''};
+function licLocal(){try{return NATIVE?(Android.licInfo?JSON.parse(Android.licInfo()):{state:'ok',id:''}):null}catch(e){return {state:'ok',id:''}}}
+async function licFetch(check){if(NATIVE){if(!Android.licCheck)return licLocal();return JSON.parse(await new Promise(res=>{const id='c'+(++_cid);_cbs[id]=res;Android.licCheck(id)}))}
+  return await rawApi('lic',check?{}:undefined)}
+function showStop(i){$('app').classList.add('hide');$('lockBox').classList.add('hide');$('stopBox').classList.remove('hide');
+  $('stTitle').textContent=i.state==='offline'?'البرنامج محتاج يتصل بالنت':'البرنامج متوقف';
+  $('stMsg').textContent=i.state==='offline'?'البرنامج ماقدرش يتأكد من الاشتراك بقاله أكتر من 10 أيام. وصّل الموبايل بالنت ودوس «إعادة التحقق».':(i.msg||'');
+  $('stId').textContent=i.id||'';$('stWa').href='https://wa.me/201123840671?text='+encodeURIComponent('رقم الجهاز: '+(i.id||''))}
+async function licGate(force){let i=licLocal();if(!i||force)i=await licFetch(false);LIC=i;
+  if(i.state!=='ok'){showStop(i);return false}
+  licFetch(true).then(n=>{LIC=n;if(n.state!=='ok')showStop(n);else if($('accId'))$('accId').textContent=n.id}).catch(()=>{});return true}
+async function licRetry(){toast('بتحقق...');const i=await licFetch(true);LIC=i;if(i.state==='ok'){$('stopBox').classList.add('hide');init()}else{showStop(i);toast('لسه متوقف')}}
+
 // ---------- القفل: اسم المستخدم ثابت M saeed ----------
 async function rawApi(p,b){const r=await fetch('/api/'+p,{method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});return r.json().catch(()=>({error:'البرنامج مش بيرد'}))}
 const LK={
@@ -200,7 +224,7 @@ let LKMODE='locked';
 function showLock(st){LKMODE=st;$('app').classList.add('hide');$('lockBox').classList.remove('hide');$('lkErr').innerHTML='';$('lkPw').value='';$('lkPw2').value='';
   const setup=st==='setup';$('lkTitle').textContent=setup?'أول مرة: اعمل باسورد للبرنامج':'تسجيل الدخول';
   $('lkNote').textContent=setup?'الباسورد ده هو اللي هيفتح البرنامج بعد كده، واسم المستخدم ثابت M saeed. الباسورد بيتحفظ متشفّر ومحدش يقدر يعرفه.':'البرنامج مقفول. ادخل بالباسورد.';
-  $('lkPw2Box').classList.toggle('hide',!setup);$('lkBtn').textContent=setup?'حفظ الباسورد والدخول':'دخول';setTimeout(()=>$('lkPw').focus(),100)}
+  $('lkPw2Box').classList.toggle('hide',!setup);if(LIC.id)$('lkNote').textContent+=' — رقم الجهاز: '+LIC.id;$('lkBtn').textContent=setup?'حفظ الباسورد والدخول':'دخول';setTimeout(()=>$('lkPw').focus(),100)}
 async function lkGo(){const pw=$('lkPw').value;$('lkErr').innerHTML='';
   if(LKMODE==='setup'&&pw!==$('lkPw2').value){$('lkErr').innerHTML='<div class="diag bad">الباسوردين مش زي بعض</div>';return}
   $('lkBtn').disabled=true;let e;try{e=LKMODE==='setup'?await LK.setup(pw):await LK.login(pw)}catch(x){e='حصلت مشكلة'}$('lkBtn').disabled=false;
@@ -558,12 +582,13 @@ async function doRefresh(){
   addEventListener('touchend',()=>{const go=py!==null&&pd>100;py=null;pd=0;PI.style.transform='translateY(-60px)';PI.style.opacity=0;if(go)doRefresh()});
 })();
 async function init(){
+  try{if(!(await licGate(false)))return}catch(e){}
   let st='open';try{st=await LK.state()}catch(e){}
   if(st!=='open'){showLock(st);return}
   if(NATIVE){document.querySelectorAll('.pcOnly').forEach(e=>e.remove());try{$('curVer').textContent=Android.appVersion()}catch(e){}showJustUpdated();setTimeout(()=>{try{const p=Android.takeBgScan&&Android.takeBgScan();if(p)window.__bgScan(p)}catch(e){}},800)}
   else{try{const v=await api('version');$('curVer').textContent=v.name}catch(e){}}
   $('verTxt').textContent='إصدار '+$('curVer').textContent+' —';
-  setTimeout(()=>checkUpd(false),2500);try{await loadCfg();$('app').classList.remove('hide');$('lockBox').classList.add('hide')}catch(e){}}
+  setTimeout(()=>checkUpd(false),2500);try{await loadCfg();$('app').classList.remove('hide');$('lockBox').classList.add('hide');if(LIC.id)$('accId').textContent=LIC.id}catch(e){}}
 init();
 </script>
 </body>

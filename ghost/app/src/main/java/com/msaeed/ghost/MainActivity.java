@@ -35,7 +35,7 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     // زوّد الرقم ده (وفي ghost/engine-version.txt) لما تغيّر في كود الجافا
-    static final int ENGINE = 13;
+    static final int ENGINE = 14;
     static final String UPD = "https://github.com/sm0902556-sketch/msaeed-shop/releases/download/ghost-latest/";
 
     private WebView web;
@@ -164,6 +164,7 @@ public class MainActivity extends Activity {
                     if (wait > 0) Thread.sleep(wait);
                     KeepAlive.text(MainActivity.this, "بعمل فحص بعد الريستارت...");
                     String r = null;
+                    if (!License.ok(MainActivity.this)) return;
                     for (int i = 0; i < 12; i++) { // لو فيه فحص تاني شغال، استنى
                         r = engine.handle("scan", "{\"ranges\":" + rangesJson + "}");
                         if (!r.contains("فيه عملية شغالة")) break;
@@ -180,6 +181,16 @@ public class MainActivity extends Activity {
                     KeepAlive.done(MainActivity.this, "الفحص بعد الريستارت خلص", msg);
                 } catch (Exception e) {
                 } finally { KeepAlive.stop(MainActivity.this); }
+            });
+        }
+
+        // ---------- الإيقاف من بعيد ----------
+        @JavascriptInterface public String licInfo() { return License.info(MainActivity.this); }
+        @JavascriptInterface public void licCheck(final String cbId) {
+            pool.submit(() -> {
+                String r = License.check(MainActivity.this);
+                final String js = "window.__cb(" + JSONObject.quote(cbId) + "," + JSONObject.quote(r) + ")";
+                runOnUiThread(() -> web.evaluateJavascript(js, null));
             });
         }
 
@@ -203,6 +214,7 @@ public class MainActivity extends Activity {
                 String r;
                 try {
                     if ("upd_check".equals(path)) r = checkUpdate(false);
+                    else if (!License.ok(MainActivity.this)) r = Engine.err("stopped");  // البرنامج موقوف من المبرمج
                     else if (!Lock.isOpen(MainActivity.this)) r = Engine.err("locked");   // القفل في الجافا نفسه
                     else r = engine.handle(path, body);
                 } catch (Throwable t) {
