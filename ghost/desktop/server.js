@@ -491,6 +491,11 @@ async function guard(res, fn) {
 const server = http.createServer(async (req, res) => {
   const u = req.url.split('?')[0];
   if (u === '/') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end(HTML); }
+  // التحديث مسموح حتى قبل الدخول، عشان البرنامج مايشتغلش غير بآخر نسخة
+  if (u === '/api/version') return send(res, { name: APP_VERSION, code: APP_CODE });
+  if (u === '/api/upd_check') { try { return send(res, await updCheck()); } catch (e) { return send(res, { error: 'مفيش نت أو مقدرتش أوصل لسيرفر التحديث' }); } }
+  if (u === '/api/upd_go') { try { return send(res, await updGo()); } catch (e) { return send(res, { error: e.message }); } }
+  if (u === '/api/progress' && progress.text === 'بنزّل التحديث') return send(res, progress);
   if (u === '/api/lock_state') return send(res, { state: !users()[OWNER] ? 'setup' : authed(req) ? 'open' : 'locked', owner: OWNER });
   if (u === '/api/lock_setup') {
     const b = await body(req);
@@ -547,9 +552,6 @@ const server = http.createServer(async (req, res) => {
       const e = badPw(b.pw); if (e) return send(res, { error: e });
       users()[b.name] = pwRec(b.pw, !!r.off); save(); return send(res, { ok: true });
     }
-    case '/api/version': return send(res, { name: APP_VERSION, code: APP_CODE });
-    case '/api/upd_check': try { return send(res, await updCheck()); } catch (e) { return send(res, { error: 'مفيش نت أو مقدرتش أوصل لسيرفر التحديث' }); }
-    case '/api/upd_go': try { return send(res, await updGo()); } catch (e) { return send(res, { error: e.message }); }
     case '/api/config':
       if (req.method === 'POST') {
         const n = b.config || {};

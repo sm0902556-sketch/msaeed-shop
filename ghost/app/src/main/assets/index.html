@@ -69,6 +69,12 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
 <header><div class="logo">M</div><div><h1>فحص عميل معلق</h1><small>المبرمج محمد سعيد — 01123840671</small></div><button id="refBtn" onclick="doRefresh()" title="تحديث">🔄</button></header>
 <div id="pullInd">⬇️ اسحب لتحت للتحديث</div>
 
+<div id="updGate" class="hide"><main><div class="card" style="text-align:center">
+  <div style="font-size:46px">⬆️</div><h3 id="ugTitle" style="font-size:19px"></h3>
+  <div id="ugMsg" style="line-height:1.9;margin:8px 0;color:var(--mut)"></div><div id="ugProg"></div>
+  <button class="btn big hide" id="ugBtn">⬇️ نزّل التحديث</button>
+  <button class="btn ghost hide" id="ugRetry" style="width:100%;margin-top:8px" onclick="location.reload()">🔄 إعادة المحاولة</button>
+</div></main></div>
 <div id="lockBox" class="hide"><main><div class="card">
   <h3 id="lkTitle">تسجيل الدخول</h3>
   <div id="lkNote" style="font-size:13px;color:var(--mut);line-height:1.7;margin-bottom:6px"></div>
@@ -180,6 +186,24 @@ async function api(p,b){
   if(j.error==='locked'||j.error==='need_pin'){showLock('locked');throw 0}
   return j;
 }
+// ---------- التحديث الإجباري: البرنامج مايشتغلش غير بآخر نسخة ----------
+function showGate(title,msg){['app','lockBox'].forEach(i=>$(i).classList.add('hide'));$('updGate').classList.remove('hide');$('ugTitle').textContent=title;$('ugMsg').textContent=msg;$('ugBtn').classList.add('hide');$('ugRetry').classList.add('hide')}
+async function updGate(){let v;
+  try{v=NATIVE?await api('upd_check'):await rawApi('upd_check')}catch(e){return true}
+  if(!v||v.error||v.latest)return true;                       // مفيش نت أو عنده آخر نسخة
+  if(v.updated){showGate('بيتحدّث للإصدار '+v.name,'ثواني والبرنامج هيفتح بالنسخة الجديدة...');return false}
+  if(v.apk){showGate('لازم تحدّث البرنامج','فيه إصدار جديد '+v.name+(v.notes?' ('+v.notes+')':'')+'، والبرنامج مش هيشتغل غير بعد التحديث. دوس «نزّل التحديث» وبعدين «تثبيت».');
+    const b=$('ugBtn');b.classList.remove('hide');b.onclick=()=>Android.openLink(v.url);$('ugRetry').classList.remove('hide');return false}
+  if(v.pc&&v.newer){showGate('بيتحدّث للإصدار '+v.name,'بنزّل التحديث، والبرنامج هيعيد تشغيل نفسه لوحده...');pcAutoUpdate();return false}
+  return true}
+async function pcAutoUpdate(){const pr=$('ugProg');pr.innerHTML='<div class="prog"><span class="spin"></span> <span id="ugT">بنزّل...</span><div class="bar"><i id="ugB"></i></div></div>';
+  const t=setInterval(async()=>{try{const p=await rawApi('progress');if(p.busy){$('ugT').textContent='بنزّل التحديث... '+p.done+'%';$('ugB').style.width=p.done+'%'}}catch(e){}},800);
+  let r;try{r=await rawApi('upd_go',{})}catch(e){r={error:'حصلت مشكلة'}}finally{clearInterval(t)}
+  if(r.error){$('ugMsg').textContent='التحديث فشل: '+r.error;pr.innerHTML='';$('ugRetry').classList.remove('hide');return}
+  $('ugT').textContent='✅ اتنزل، البرنامج بيعيد تشغيل نفسه...';
+  const wait=async()=>{try{const v=await fetch('/api/version',{cache:'no-store'}).then(x=>x.json());if(v.name)return location.reload()}catch(e){}setTimeout(wait,1500)};setTimeout(wait,4000)}
+setInterval(async()=>{if(!busyNow()&&!(await updGate()))return},30*60e3);
+
 // ---------- القفل: اسم المستخدم ثابت M saeed ----------
 async function rawApi(p,b){const r=await fetch('/api/'+p,{method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});return r.json().catch(()=>({error:'البرنامج مش بيرد'}))}
 const B=(o)=>o;
@@ -580,6 +604,7 @@ async function doRefresh(){
   addEventListener('touchend',()=>{const go=py!==null&&pd>100;py=null;pd=0;PI.style.transform='translateY(-60px)';PI.style.opacity=0;if(go)doRefresh()});
 })();
 async function init(){
+  if(!(await updGate()))return;
   let st='open';try{st=await LK.state()}catch(e){}
   if(st!=='open'){showLock(st);return}
   if(NATIVE){document.querySelectorAll('.pcOnly').forEach(e=>e.remove());try{$('curVer').textContent=Android.appVersion()}catch(e){}showJustUpdated();setTimeout(()=>{try{const p=Android.takeBgScan&&Android.takeBgScan();if(p)window.__bgScan(p)}catch(e){}},800)}
