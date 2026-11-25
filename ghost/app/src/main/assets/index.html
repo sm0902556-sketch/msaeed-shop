@@ -176,7 +176,7 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
     <div id="urls" style="margin-top:12px;font-size:13px"></div>
   </div>
   <button class="btn big" onclick="saveCfg()">حفظ</button>
-  <div class="card" style="margin-top:14px">
+  <div class="card hide" id="admCard" style="margin-top:14px">
     <details id="admDet" ontoggle="if(this.open)admLoad()"><summary style="font-size:16px">🔐 لوحة المبرمج (إيقاف العملاء)</summary><div style="padding:0 12px 12px">
       <div id="admNoKey">
         <div style="font-size:13px;color:var(--mut);line-height:1.8">اللوحة دي بتشتغل بمفتاح GitHub بتاعك، وبيتحفظ على الجهاز ده بس. حطه على موبايلك انت بس، مش على أجهزة العملاء.</div>
@@ -200,7 +200,7 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
   </div>
 </section>
 </main>
-<footer><span id="verTxt"></span> برمجة <b>المبرمج محمد سعيد</b> — <a href="https://wa.me/201123840671" target="_blank">واتساب 01123840671</a></footer>
+<footer><span id="verTxt" onclick="admTap()" style="cursor:default;user-select:none"></span> برمجة <b>المبرمج محمد سعيد</b> — <a href="https://wa.me/201123840671" target="_blank">واتساب 01123840671</a></footer>
 </div>
 <div id="toast"></div>
 
@@ -521,7 +521,12 @@ function admMsg(cls,t){$('admMsg').innerHTML=t?`<div class="diag ${cls}">${esc(t
 function admHowKey(){$('admHow').classList.toggle('hide')}
 async function admSaveKey(){const k=$('admTok').value.trim();if(!k)return;try{localStorage.setItem('gh_tok',k)}catch(e){}$('admTok').value='';
   try{await admLoad();toast('✅ المفتاح شغال')}catch(e){}}
-function admForget(){if(!confirm('امسح مفتاح GitHub من الجهاز ده؟'))return;try{localStorage.removeItem('gh_tok')}catch(e){}ADM=null;admRender()}
+function admForget(){if(!confirm('امسح مفتاح GitHub من الجهاز ده؟ (اللوحة هتختفي تاني)'))return;try{localStorage.removeItem('gh_tok');localStorage.removeItem('adm_on')}catch(e){}ADM=null;admRender();admShow()}
+// اللوحة مخفية: بتظهر بس على الجهاز اللي عليه المفتاح، أو بعد 7 ضغطات على رقم الإصدار
+function admShow(){let on=false;try{on=!!localStorage.getItem('gh_tok')||!!localStorage.getItem('adm_on')}catch(e){}if($('admCard'))$('admCard').classList.toggle('hide',!on)}
+let admTaps=0,admTapT=0;
+function admTap(){const n=Date.now();if(n-admTapT>1500)admTaps=0;admTapT=n;if(++admTaps>=7){admTaps=0;try{localStorage.setItem('adm_on','1')}catch(e){}admShow();
+  document.querySelector('nav button[data-t=set]').click();setTimeout(()=>{$('admCard').scrollIntoView({block:'start'});$('admDet').open=true},200);toast('🔐 لوحة المبرمج ظهرت')}}
 async function admLoad(){if(!admKey()){admRender();return}admMsg('info','بحمّل قايمة العملاء...');
   try{const j=await ghReq('GET');const d=JSON.parse(b64d(j.content));ADM={sha:j.sha,data:{message:d.message||'',blocked:d.blocked||[],customers:d.customers||{}}};admMsg('','');admRender()}
   catch(e){admMsg('bad',e.message);ADM=null;admRender(true)}}
@@ -643,7 +648,7 @@ async function init(){
   if(NATIVE){document.querySelectorAll('.pcOnly').forEach(e=>e.remove());try{$('curVer').textContent=Android.appVersion()}catch(e){}showJustUpdated();setTimeout(()=>{try{const p=Android.takeBgScan&&Android.takeBgScan();if(p)window.__bgScan(p)}catch(e){}},800)}
   else{try{const v=await api('version');$('curVer').textContent=v.name}catch(e){}}
   $('verTxt').textContent='إصدار '+$('curVer').textContent+' —';
-  setTimeout(()=>checkUpd(false),2500);try{await loadCfg();$('app').classList.remove('hide');$('lockBox').classList.add('hide');if(LIC.id)$('accId').textContent=LIC.id}catch(e){}}
+  setTimeout(()=>checkUpd(false),2500);try{await loadCfg();$('app').classList.remove('hide');$('lockBox').classList.add('hide');if(LIC.id)$('accId').textContent=LIC.id;admShow()}catch(e){}}
 init();
 </script>
 </body>
