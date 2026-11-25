@@ -282,7 +282,7 @@ function renderScan(){
   h+=`<div class="card"><details><summary>الأكسسات (${j.aps.length})</summary><div class="tw"><table><tr><th>IP</th><th>name</th><th>clients</th><th>up</th><th>RAM</th><th>script</th><th></th></tr>${j.aps.map(a=>`<tr><td>${esc(a.ip)}</td><td>${esc(a.host)}</td><td>${a.n}</td><td>${fmtUp(a.up)}</td><td>${a.memT?Math.round(a.memA/1024)+'/'+Math.round(a.memT/1024)+'MB':''}</td><td class="${a.installed&&a.running&&a.gver>=2?'okc':'badc'}">${!a.installed?'✗':!a.running?'واقف':a.gver<2?'قديم':'✓'}</td><td><button class="btn" style="padding:5px 8px;font-size:12px" onclick="apAct('${esc(a.ip)}','wifi',this)">📶 واي فاي</button> <button class="btn red" style="padding:5px 8px;font-size:12px" onclick="apAct('${esc(a.ip)}','reboot',this)">🔁 ريستارت</button></td></tr>`).join('')}</table></div></details>`;
   if(j.failed.length)h+=`<details ${j.okCount?'':'open'}><summary>أكسسات ماقدرتش أدخلها (${j.failed.length})</summary>
     <div style="font-size:12px;color:var(--mut);padding:0 12px 8px">دوس «اختبار» عشان تعرف المشكلة بالظبط.</div>
-    <div class="tw"><table>${j.failed.map(f=>`<tr><td>${esc(f.ip)}</td><td style="direction:rtl;text-align:right;white-space:normal">${esc(f.err)}</td><td><button class="btn" style="padding:6px 10px;font-size:13px" onclick="doDiag('${esc(f.ip)}')">اختبار</button></td></tr>`).join('')}</table></div>
+    <div class="tw"><table>${j.failed.map(f=>`<tr><td>${esc(f.ip)}</td><td style="direction:rtl;text-align:right;white-space:normal">${esc(arE(f.err))}</td><td><button class="btn" style="padding:6px 10px;font-size:13px" onclick="doDiag('${esc(f.ip)}')">اختبار</button></td></tr>`).join('')}</table></div>
     <div id="diagRes" style="padding:0 12px 12px"></div></details>`;
   h+='</div>';
   if(j.aps.length)h+=`<div class="card"><h3>ريستارت لكل الرينج</h3>
@@ -296,19 +296,19 @@ async function rebootAll(){const aps=(LAST&&LAST.aps)||[];if(!aps.length)return;
   const btn=$('rbAllBtn'),log=$('rbAllLog');btn.disabled=true;log.innerHTML='';
   const add=(cls,html)=>{const d=document.createElement('div');d.className='diag '+cls;d.innerHTML=html;log.appendChild(d);return d};
   const info=add('info','<span class="spin"></span> ببعت أمر الريستارت لـ '+aps.length+' أكسس مع بعض...');
-  const W=40,t0=Date.now();
+  const W=60,t0=Date.now();
   const send1=async a=>{const d=Math.max(5,Math.round(W-(Date.now()-t0)/1000));
     let r;try{r=await api('ap_action',{ip:a.ip,action:'reboot',delay:d})}catch(e){r={error:'حصلت مشكلة'}}
     if(!r.error)logFix(a.ip,'reboot');return {a,r}};
   // نبعت على دفعات عشان مانضغطش على الفون، بس كله جوه نفس الـ 40 ثانية
-  const res=[];for(let i=0;i<aps.length;i+=20){res.push(...await Promise.all(aps.slice(i,i+20).map(send1)))}
+  const res=await Promise.all(aps.map(send1));   // كله في نفس اللحظة، مش على دفعات
   const again=res.filter(o=>o.r.error);
   if(again.length&&(Date.now()-t0)/1000<W-8){info.innerHTML='<span class="spin"></span> بعيد إرسال الأمر لـ '+again.length+' أكسس ماوصلهمش...';
     const r2=await Promise.all(again.map(o=>send1(o.a)));r2.forEach(n=>{const o=res.find(z=>z.a===n.a);o.r=n.r})}
   const okN=res.filter(o=>!o.r.error).length;
   info.className='diag '+(okN===aps.length?'ok':'warn');
-  info.innerHTML=(okN===aps.length?'✅ ':'⚠️ ')+'أمر الريستارت وصل لـ '+okN+' من '+aps.length+' أكسس، وهيعملوا ريستارت مع بعض خلال ثواني.';
-  for(const o of res.filter(o=>o.r.error))add('bad','⛔ <b class="ltr">'+esc(o.a.ip)+'</b>: '+esc(o.r.error));
+  info.innerHTML=(okN===aps.length?'✅ ':'⚠️ ')+'أمر الريستارت وصل لـ '+okN+' من '+aps.length+' أكسس، وهيعملوا ريستارت مع بعض في نفس اللحظة.';
+  for(const o of res.filter(o=>o.r.error))add('bad','⛔ <b class="ltr">'+esc(o.a.ip)+'</b>: '+esc(arE(o.r.error)));
   const cd=add('info','');let left=180;
   const tick=()=>{if(!document.body.contains(cd))return;if(left<=0){cd.innerHTML='🔍 بعمل فحص تاني عشان أتأكد...';doScan(true);return}
     cd.innerHTML='⏳ هعمل فحص تاني لوحدي بعد '+left+' ثانية، وهقولك مين عمل ريستارت ومين لأ.';left--;setTimeout(tick,1000)};tick();
@@ -322,6 +322,8 @@ function apProblems(a,ghostN){const p=[];
   if(a.load>4)p.push(['warn','الجهاز مضغوط بقاله 5 دقايق (load '+a.load+')','reboot']);
   if(ghostN>=3)p.push(['warn','عليه '+ghostN+' عميل معلّق','kick']);
   return p}
+function arE(m){m=String(m||'');if(/connection abort|Connection reset|Broken pipe|Network is unreachable/i.test(m))return 'الاتصال اتقطع — غالباً أكسس قبله في السلك، أو الأكسس اللي الفون متوصل عليه، عمل ريستارت قبل ما الأمر يوصل';
+  if(/timeout|timed out/i.test(m))return 'الأكسس مارجّعش رد في الوقت';if(/refused/i.test(m))return 'الـ SSH مقفول على الأكسس';return m}
 function getFix(){try{return JSON.parse(localStorage.getItem('fixlog')||'{}')}catch(e){return {}}}
 function logFix(ip,act){if(act==='kick')return;const f=getFix();f[ip]={act,t:Date.now()};try{localStorage.setItem('fixlog',JSON.stringify(f))}catch(e){}}
 const PLAN={reboot:'ريستارت للأكسس (هيقف حوالي دقيقة ويرجع)',wifi:'إعادة تشغيل الواي فاي (العملاء هيفصلوا ثواني ويرجعوا لوحدهم)',kick:'فصل العملاء المعلّقين من الأكسس ده بس'};
@@ -336,7 +338,7 @@ async function fixOne(ip,act,btn){if(!confirm('هنفّذ على '+ip+': '+PLAN[
 async function fixAll(){const list=(LAST._bad||[]).filter(x=>x.plan);if(!list.length)return;
   const kicks=list.filter(x=>x.plan==='kick'),acts=list.filter(x=>x.plan!=='kick'),rb=acts.filter(x=>x.plan==='reboot');
   if(!confirm('هنفّذ الحل على '+list.length+' أكسس:\n'+list.map(x=>x.a.ip+' ← '+PLAN[x.plan]).join('\n')+
-    '\n\nالطريقة: هبعت الأمر لكل الأجهزة مع بعض وهي لسه متوصلة، وكلهم هينفّذوا في نفس اللحظة بعد حوالي 40 ثانية، عشان الأجهزة اللي ورا بعض في السلك ماتتقطعش قبل ما يوصلها الأمر.'+
+    '\n\nالطريقة: هبعت الأمر لكل الأجهزة مع بعض وهي لسه متوصلة، وكلهم هينفّذوا في نفس اللحظة بعد حوالي دقيقة، عشان الأجهزة اللي ورا بعض في السلك ماتتقطعش قبل ما يوصلها الأمر.'+
     (rb.length?'\n\n⚠️ الأجهزة اللي هتعمل ريستارت ('+rb.length+') هتقف حوالي دقيقة، ومعاها أي أكسس وراها في السلك.':'')+'\n\nأكمل؟'))return;
   const btn=$('fixAllBtn'),log=$('fixAllLog');btn.disabled=true;log.innerHTML='';
   const add=(cls,html)=>{const d=document.createElement('div');d.className='diag '+cls;d.innerHTML=html;log.appendChild(d);return d};
@@ -346,7 +348,7 @@ async function fixAll(){const list=(LAST._bad||[]).filter(x=>x.plan);if(!list.le
     let r;try{r=await runPlan(x.a.ip,'kick')}catch(e){r={ok:false,msg:'حصلت مشكلة'}}
     l.className='diag '+(r.ok?'ok':'bad');l.innerHTML=(r.ok?'✅ ':'⛔ ')+'<b class="ltr">'+esc(x.a.ip)+'</b>: '+esc(r.msg);if(r.ok)mark(x.a.ip)}
   // 2) إرسال الأوامر لكل الأجهزة مع بعض، والتنفيذ في نفس اللحظة
-  if(acts.length){const W=40,t0=Date.now();
+  if(acts.length){const W=60,t0=Date.now();
     const info=add('info','<span class="spin"></span> ببعت أمر الإصلاح لـ '+acts.length+' أكسس مع بعض...');
     const send1=async x=>{const d=Math.max(5,Math.round(W-(Date.now()-t0)/1000));
       let r;try{r=await api('ap_action',{ip:x.a.ip,action:x.plan,delay:d})}catch(e){r={error:'حصلت مشكلة'}}
@@ -358,7 +360,7 @@ async function fixAll(){const list=(LAST._bad||[]).filter(x=>x.plan);if(!list.le
     const okN=res.filter(o=>!o.r.error).length;
     info.className='diag '+(okN===acts.length?'ok':'warn');
     info.innerHTML=(okN===acts.length?'✅ ':'⚠️ ')+'الأمر وصل لـ '+okN+' من '+acts.length+' أكسس، وهينفّذوا مع بعض خلال ثواني.';
-    for(const {x,r} of res){if(r.error)add('bad','⛔ <b class="ltr">'+esc(x.a.ip)+'</b>: '+esc(r.error));else{mark(x.a.ip);add('ok','✅ <b class="ltr">'+esc(x.a.ip)+'</b>: '+esc(PLAN[x.plan]))}}
+    for(const {x,r} of res){if(r.error)add('bad','⛔ <b class="ltr">'+esc(x.a.ip)+'</b>: '+esc(arE(r.error)));else{mark(x.a.ip);add('ok','✅ <b class="ltr">'+esc(x.a.ip)+'</b>: '+esc(PLAN[x.plan]))}}
     // 3) فحص تاني أوتوماتيك عشان نتأكد
     const cd=add('info','');let left=rb.length?180:90;
     const tick=()=>{if(!document.body.contains(cd))return;if(left<=0){cd.innerHTML='🔍 بعمل فحص تاني عشان أتأكد...';doScan(true);return}
