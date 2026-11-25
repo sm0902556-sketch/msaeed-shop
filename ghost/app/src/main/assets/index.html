@@ -84,6 +84,7 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
     <div class="mini"><a onclick="allChips('scanChips',1)">تحديد الكل</a>·<a onclick="allChips('scanChips',0)">إلغاء الكل</a></div>
     <div style="font-size:13px;color:var(--mut);margin-top:8px">البحث بيلف على الرينج مرتين، من .2 لـ .254، عشان يلاقي كل الأكسسات حتى البطيئة.</div>
     <button class="btn big" style="margin-top:10px" id="scanBtn" onclick="doScan()">🔍 ابدأ الفحص</button>
+    <button class="btn big" style="margin-top:8px;background:linear-gradient(135deg,#ffcc80,#ffb74d)" id="probBtn" onclick="doScan(true)">🩺 دوّر على المشاكل</button>
     <div class="mut" style="font-size:12px;margin-top:8px;color:var(--mut)">الفحص بيكشف بس، ومش بيفصل أي حد غير لما تدوس «فصل المحدد».</div>
     <div id="scanProg"></div>
   </div>
@@ -187,7 +188,7 @@ function saveSel(id){try{localStorage.setItem('sel_'+id,JSON.stringify(picked(id
 function allChips(id,on){$(id).querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',!!on));saveSel(id)}
 function rngTxt(l){return l.length===1?'\u2066'+l[0]+'.x\u2069':l.length+' رينجات'}
 function updCount(){const a=picked('scanChips'),b=picked('instChips');
-  $('scanBtn').textContent=a.length?'🔍 افحص '+rngTxt(a):'اختار رينج الأول';
+  $('scanBtn').textContent=a.length?'🔍 افحص '+rngTxt(a):'اختار رينج الأول';if($('probBtn'))$('probBtn').textContent=a.length?'🩺 دوّر على المشاكل في '+rngTxt(a):'🩺 دوّر على المشاكل';
   $('instBtn').textContent=b.length?'⬇️ تركيب على '+rngTxt(b):'⬇️ تركيب';
   $('remBtn').textContent=b.length?'إزالة من '+rngTxt(b):'إزالة';}
 const picked=id=>[...$(id).querySelectorAll('.chip.on')].map(c=>c.dataset.r);
@@ -201,11 +202,11 @@ async function withProgress(boxId,btns,fn){
 }
 const sec=ms=>{ms=+ms||0;const s=Math.round(ms/1000);return s<60?s+' ثانية':Math.floor(s/60)+' دقيقة'};
 
-async function doScan(){
+async function doScan(focus){
   const ranges=picked('scanChips');if(!ranges.length)return toast('اختار رينج واحد على الأقل');
-  let j;try{j=await withProgress('scanProg',['scanBtn'],()=>api('scan',{ranges}))}catch(e){return}
+  let j;try{j=await withProgress('scanProg',['scanBtn','probBtn'],()=>api('scan',{ranges}))}catch(e){return}
   if(j.error){$('scanRes').innerHTML=`<div class="card"><div class="diag bad">${esc(j.error)}</div></div>`;return}
-  j.ranges=ranges;LAST=j;renderScan();
+  j.ranges=ranges;LAST=j;renderScan();if(focus===true){const c=$('healthCard');if(c)c.scrollIntoView({behavior:'smooth',block:'start'})}
 }
 function renderScan(){
   const j=LAST;
@@ -227,13 +228,20 @@ function renderScan(){
   }
   h+='</div>';
   const gc={};for(const g of j.ghosts)gc[g.ip]=(gc[g.ip]||0)+1;
-  const bad=j.aps.map(a=>({a,p:apProblems(a,gc[a.ip]||0)})).filter(x=>x.p.length);
-  h+=`<div class="card"><h3>حالة الأكسسات</h3>`+(bad.length?bad.map(({a,p})=>`<div class="gh" style="border-right-color:${p.some(x=>x[0]==='bad')?'var(--bad)':'var(--warn)'};display:block">
-     <div><b class="ltr">${esc(a.ip)}</b> ${esc(a.host)} <span style="color:var(--mut);font-size:12px">— شغال من ${fmtUp(a.up)}</span></div>
+  const bad=j.aps.map(a=>{const p=apProblems(a,gc[a.ip]||0);return {a,p,plan:apPlan(p)}}).filter(x=>x.p.length);j._bad=bad;
+  h+=`<div class="card" id="healthCard"><h3>حالة الأكسسات ${bad.length?'— <span style="color:var(--bad)">'+bad.length+' فيهم مشاكل</span>':''}</h3>`;
+  if(bad.length)h+=`<button class="btn big red" id="fixAllBtn" onclick="fixAll()">🛠️ نفّذ الحل على كل الأجهزة (${bad.length})</button><div id="fixAllLog" style="margin:8px 0"></div>`+
+    bad.map(({a,p,plan})=>`<div class="gh" style="border-right-color:${p.some(x=>x[0]==='bad')?'var(--bad)':'var(--warn)'};display:block">
+     <div><b class="ltr">${esc(a.ip)}</b> ${esc(a.host)} <span style="color:var(--mut);font-size:12px">— شغال من ${fmtUp(a.up)} — ${a.n} عميل</span></div>
+     <div style="margin-top:6px;color:var(--gold2);font-size:13px">التشخيص:</div>
      ${p.map(x=>`<div class="d">${x[0]==='bad'?'⛔':'⚠️'} ${esc(x[1])}</div>`).join('')}
-     <div class="row" style="margin-top:8px"><button class="btn" style="padding:8px;font-size:14px" onclick="apAct('${esc(a.ip)}','wifi',this)">📶 إعادة تشغيل الواي فاي</button><button class="btn red" style="padding:8px;font-size:14px" onclick="apAct('${esc(a.ip)}','reboot',this)">🔁 ريستارت</button></div></div>`).join('')
-     :(j.okCount?'<div class="diag ok">✅ كل الأكسسات اللي اتفحصت سليمة.</div>':''))+
-     (j.failed.length?`<div class="diag warn">⚠️ ${j.failed.length} أكسس البرنامج مش قادر يدخلهم، ودول مش هينفع أصلّحهم من هنا. شوف «اختبار» تحت.</div>`:'')+`</div>`;
+     <div style="margin-top:6px;color:var(--gold2);font-size:13px">الحل المقترح:</div><div class="d">🛠️ ${esc(PLAN[plan])}</div>
+     <div class="row" style="margin-top:8px"><button class="btn" style="padding:8px;font-size:14px" data-fix="${esc(a.ip)}" onclick="fixOne('${esc(a.ip)}','${plan}',this)">نفّذ الحل</button>
+       ${plan!=='wifi'?`<button class="btn ghost" style="padding:8px;font-size:13px" onclick="apAct('${esc(a.ip)}','wifi',this)">📶 واي فاي بس</button>`:''}
+       ${plan!=='reboot'?`<button class="btn ghost" style="padding:8px;font-size:13px" onclick="apAct('${esc(a.ip)}','reboot',this)">🔁 ريستارت</button>`:''}</div></div>`).join('');
+  else if(j.okCount)h+='<div class="diag ok">✅ كل الأكسسات اللي اتفحصت سليمة، مفيش مشاكل.</div>';
+  if(j.failed.length)h+=`<div class="diag warn">⚠️ ${j.failed.length} أكسس البرنامج مش قادر يدخلهم، ودول مش هينفع أصلّحهم من هنا. شوف «اختبار» تحت.</div>`;
+  h+='</div>';
   h+=`<div class="card"><h3>دوّر على عميل</h3><input id="find" placeholder="اكتب MAC أو IP أو اسم الكارت" oninput="findMac()"><div id="findRes" style="margin-top:8px"></div></div>`;
   if(j.dups.length)h+=`<div class="card"><details><summary>عملاء ظاهرين على أكسسين بس مش أكيد شبح (${j.dups.length})</summary><div class="tw"><table><tr><th>MAC</th><th>AP</th><th>idle</th><th>real AP</th></tr>${j.dups.map(d=>`<tr><td>${esc(d.mac)}</td><td>${esc(d.ip)}</td><td>${sec(d.inactive)}</td><td>${esc(d.real)}</td></tr>`).join('')}</table></div></details></div>`;
   h+=`<div class="card"><details><summary>الأكسسات (${j.aps.length})</summary><div class="tw"><table><tr><th>IP</th><th>name</th><th>clients</th><th>up</th><th>RAM</th><th>script</th><th></th></tr>${j.aps.map(a=>`<tr><td>${esc(a.ip)}</td><td>${esc(a.host)}</td><td>${a.n}</td><td>${fmtUp(a.up)}</td><td>${a.memT?Math.round(a.memA/1024)+'/'+Math.round(a.memT/1024)+'MB':''}</td><td class="${a.installed?'okc':'badc'}">${a.installed?'✓':'✗'}</td><td><button class="btn" style="padding:5px 8px;font-size:12px" onclick="apAct('${esc(a.ip)}','wifi',this)">📶 واي فاي</button> <button class="btn red" style="padding:5px 8px;font-size:12px" onclick="apAct('${esc(a.ip)}','reboot',this)">🔁 ريستارت</button></td></tr>`).join('')}</table></div></details>`;
@@ -247,12 +255,29 @@ function renderScan(){
 function cinfo(x){const a=[];if(x.cip)a.push('IP: <b class="ltr">'+esc(x.cip)+'</b>');if(x.cuser)a.push('كارت: <b class="ltr">'+esc(x.cuser)+'</b>');if(x.cname)a.push('<span class="ltr">'+esc(x.cname)+'</span>');return a.join(' — ')}
 function fmtUp(sec){sec=+sec||0;if(!sec)return '';const d=Math.floor(sec/86400),h=Math.floor(sec%86400/3600),m=Math.floor(sec%3600/60);return d?d+' يوم '+h+' ساعة':h?h+' ساعة '+m+' دقيقة':m+' دقيقة'}
 function apProblems(a,ghostN){const p=[];
-  if(a.wifi===0||a.hapd===0)p.push(['bad','الواي فاي واقف على الأكسس ده']);
-  if(a.derr>0)p.push(['warn','درايفر الواي فاي فيه أخطاء ('+a.derr+') — غالباً معلّق']);
-  if(a.memT&&a.memA/a.memT<0.12)p.push(['warn','الرامات قربت تخلص ('+Math.round(a.memA/1024)+'MB فاضي بس)']);
-  if(a.load>3)p.push(['warn','الجهاز مضغوط (load '+a.load+')']);
-  if(ghostN>=3)p.push(['warn','عليه '+ghostN+' عميل شبح']);
+  if(a.wifi===0||a.hapd===0)p.push(['bad','الواي فاي واقف على الأكسس ده، فمحدش هيعرف يتوصل عليه','wifi']);
+  if(a.derr>0)p.push(['warn','درايفر الواي فاي طلّع '+a.derr+' خطأ — غالباً معلّق، وده بيعمل «متصل ومفيش نت»','wifi']);
+  if(a.memT&&a.memA/a.memT<0.12)p.push(['warn','الرامات قربت تخلص ('+Math.round(a.memA/1024)+'MB فاضي بس) — الأكسس هيبطّأ ويعلّق','reboot']);
+  if(a.load>3)p.push(['warn','الجهاز مضغوط (load '+a.load+') — المعالج شغال على الآخر','reboot']);
+  if(ghostN>=3)p.push(['warn','عليه '+ghostN+' عميل شبح معلّقين','kick']);
   return p}
+const PLAN={reboot:'ريستارت للأكسس (هيقف حوالي دقيقة ويرجع)',wifi:'إعادة تشغيل الواي فاي (العملاء هيفصلوا ثواني ويرجعوا لوحدهم)',kick:'فصل العملاء الشبح من الأكسس ده بس'};
+function apPlan(p){const t=p.map(x=>x[2]);return t.includes('reboot')?'reboot':t.includes('wifi')?'wifi':t.includes('kick')?'kick':null}
+async function runPlan(ip,act){
+  if(act==='kick'){const items=LAST.ghosts.filter(g=>g.ip===ip).map(g=>({ip:g.ip,iface:g.iface,mac:g.mac}));
+    const r=await api('kick',{items});if(r.error)return {ok:false,msg:r.error};const n=r.results.filter(x=>x.ok).length;return {ok:n>0,msg:'اتفصل '+n+' من '+items.length+' عميل شبح'}}
+  const r=await api('ap_action',{ip,action:act});return r.error?{ok:false,msg:r.error}:{ok:true,msg:act==='wifi'?'الواي فاي بيعيد التشغيل':'الأكسس بيعمل ريستارت'}}
+async function fixOne(ip,act,btn){if(!confirm('هنفّذ على '+ip+': '+PLAN[act]+'. أكمل؟'))return;
+  btn.disabled=true;const t=btn.textContent;btn.textContent='بنفّذ...';let r;try{r=await runPlan(ip,act)}catch(e){r={ok:false,msg:'حصلت مشكلة'}}
+  btn.textContent=r.ok?'✅ اتنفّذ':t;if(!r.ok)btn.disabled=false;toast((r.ok?'✅ ':'⛔ ')+ip+': '+r.msg)}
+async function fixAll(){const list=(LAST._bad||[]).filter(x=>x.plan);if(!list.length)return;
+  if(!confirm('هنفّذ الحل على '+list.length+' أكسس فيهم مشاكل، واحد ورا التاني:\n'+list.map(x=>x.a.ip+' ← '+PLAN[x.plan]).join('\n')+'\n\nأكمل؟'))return;
+  const btn=$('fixAllBtn'),log=$('fixAllLog');btn.disabled=true;log.innerHTML='';
+  for(const x of list){const line=document.createElement('div');line.className='diag info';line.innerHTML='<span class="spin"></span> <b class="ltr">'+esc(x.a.ip)+'</b>: '+esc(PLAN[x.plan]);log.appendChild(line);
+    let r;try{r=await runPlan(x.a.ip,x.plan)}catch(e){r={ok:false,msg:'حصلت مشكلة'}}
+    line.className='diag '+(r.ok?'ok':'bad');line.innerHTML=(r.ok?'✅ ':'⛔ ')+'<b class="ltr">'+esc(x.a.ip)+'</b>: '+esc(r.msg);
+    const b=document.querySelector('[data-fix="'+x.a.ip+'"]');if(b&&r.ok){b.textContent='✅ اتنفّذ';b.disabled=true}}
+  btn.disabled=false;btn.textContent='🛠️ خلصت — اعمل فحص تاني بعد دقيقة عشان تتأكد'}
 async function apAct(ip,act,btn){
   if(!confirm(act==='wifi'?'هعيد تشغيل الواي فاي على '+ip+'، والعملاء اللي عليه هيفصلوا ثواني ويرجعوا. أكمل؟':'هعمل ريستارت للأكسس '+ip+'، وهيقف حوالي دقيقة. أكمل؟'))return;
   btn.disabled=true;const t=btn.textContent;btn.textContent='...';
