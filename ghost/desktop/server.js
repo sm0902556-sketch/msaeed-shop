@@ -464,40 +464,21 @@ function body(req) {
   return new Promise(r => { let d = ''; req.on('data', c => { d += c; if (d.length > 1e6) req.destroy(); }); req.on('end', () => { try { r(JSON.parse(d || '{}')); } catch (e) { r({}); } }); });
 }
 const send = (res, obj, code = 200) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); };
-// ---------- إيقاف البرنامج عند عميل من بعيد (لو مادفعش) ----------
-const LIC_URL = process.env.GH_LIC_URL || 'https://raw.githubusercontent.com/sm0902556-sketch/msaeed-shop/ghost-hunter/ghost-control.json';
-const LIC_GRACE = 10 * 24 * 3600 * 1000, LIC_MSG = 'البرنامج متوقف. كلّم المبرمج محمد سعيد على واتساب 01123840671';
-function licId() {
-  if (!cfg.device_id) { const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; cfg.device_id = 'MS-' + Array.from(crypto.randomBytes(6), b => abc[b % abc.length]).join('');
-    cfg.lic = { blocked: false, checked: false, lastOk: Date.now(), msg: LIC_MSG }; save(); }   // جهاز جديد: مقفول لحد أول تحقق
-  return cfg.device_id;
-}
-function licState() { licId(); const l = cfg.lic || {};
-  if (l.blocked) return 'blocked';
-  if (l.checked === false || (l.allowlist && !l.approved)) return 'pending';
-  return Date.now() - (l.lastOk || 0) > LIC_GRACE ? 'offline' : 'ok'; }
-const licInfo = () => ({ state: licState(), id: licId(), msg: (cfg.lic || {}).msg || LIC_MSG });
-async function licCheck() {
-  const me = licId();
-  try {
-    const j = JSON.parse((await httpsGet(LIC_URL + '?t=' + Date.now())).toString('utf8'));
-    const has = a => (a || []).some(x => String(x).trim().toUpperCase() === me.toUpperCase());
-    cfg.lic = { blocked: has(j.blocked), allowlist: !!j.allowlist, approved: has(j.allowed), checked: true, lastOk: Date.now(), msg: j.message || LIC_MSG }; save();
-  } catch (e) {}
-  return licInfo();
-}
-licCheck(); setInterval(licCheck, 6 * 3600 * 1000);
-
-// ---------- القفل: اسم المستخدم ثابت M saeed والباسورد بصمة PBKDF2 مش الباسورد نفسه ----------
-const LOCK_USER = 'M saeed';
+// ---------- المستخدمين (زي برنامج الإخوة): المدير M saeed بيضيف عملاء ----------
+// الباسوردات بتتحفظ بصمة PBKDF2 مش الباسورد نفسه
+const OWNER = 'M saeed';
 let lkFails = 0, lkBlocked = 0;
+const sessions = new Map();   // token -> name
 const tok = req => ((req.headers.cookie || '').match(/gh=([a-f0-9]+)/) || [])[1];
-const pwRec = pw => { const salt = crypto.randomBytes(16); return { salt: salt.toString('hex'), hash: crypto.pbkdf2Sync(String(pw), salt, 120000, 32, 'sha256').toString('hex') }; };
-const pwOk = pw => { const l = cfg.lock; if (!l || !l.hash) return false;
-  const h = crypto.pbkdf2Sync(String(pw || ''), Buffer.from(l.salt, 'hex'), 120000, 32, 'sha256'); const ref = Buffer.from(l.hash, 'hex');
+const pwRec = (pw, off = false) => { const salt = crypto.randomBytes(16); return { salt: salt.toString('hex'), hash: crypto.pbkdf2Sync(String(pw), salt, 120000, 32, 'sha256').toString('hex'), off }; };
+const pwOk = (r, pw) => { if (!r || !r.hash) return false;
+  const h = crypto.pbkdf2Sync(String(pw || ''), Buffer.from(r.salt, 'hex'), 120000, 32, 'sha256'); const ref = Buffer.from(r.hash, 'hex');
   return h.length === ref.length && crypto.timingSafeEqual(h, ref); };
-const authed = req => !!(cfg.lock && cfg.lock.hash) && tokens.has(tok(req));
-const newSession = res => { const t = crypto.randomBytes(16).toString('hex'); tokens.add(t); res.setHeader('Set-Cookie', `gh=${t}; Path=/; HttpOnly; SameSite=Strict`); };
+const users = () => (cfg.users ||= {});
+const who = req => { const n = sessions.get(tok(req)); const r = n && users()[n]; return r && !r.off ? n : null; };
+const authed = req => !!who(req);
+const badPw = pw => (!pw || String(pw).length < 4) ? 'الباسورد لازم يبقى 4 حروف أو أرقام على الأقل' : null;
+const newSession = (res, name) => { const t = crypto.randomBytes(16).toString('hex'); sessions.set(t, name); res.setHeader('Set-Cookie', `gh=${t}; Path=/; HttpOnly; SameSite=Strict`); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 async function guard(res, fn) {
@@ -510,36 +491,61 @@ async function guard(res, fn) {
 const server = http.createServer(async (req, res) => {
   const u = req.url.split('?')[0];
   if (u === '/') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end(HTML); }
-  if (u === '/api/lic') return send(res, req.method === 'POST' ? await licCheck() : licInfo());
-  if (licState() !== 'ok' && u.startsWith('/api/') && !['/api/version', '/api/upd_check', '/api/upd_go'].includes(u)) return send(res, { error: 'stopped' }, 403);
-  if (u === '/api/lock_state') return send(res, { state: !(cfg.lock && cfg.lock.hash) ? 'setup' : authed(req) ? 'open' : 'locked', user: LOCK_USER });
+  if (u === '/api/lock_state') return send(res, { state: !users()[OWNER] ? 'setup' : authed(req) ? 'open' : 'locked', owner: OWNER });
   if (u === '/api/lock_setup') {
     const b = await body(req);
-    if (cfg.lock && cfg.lock.hash) return send(res, { error: 'الباسورد متعمل بالفعل' });
-    if (!b.pw || String(b.pw).length < 4) return send(res, { error: 'الباسورد لازم يبقى 4 حروف أو أرقام على الأقل' });
-    cfg.lock = pwRec(b.pw); delete cfg.pin; save(); newSession(res); return send(res, { ok: true });
+    if (users()[OWNER]) return send(res, { error: 'حساب المدير متعمل بالفعل' });
+    const e = badPw(b.pw); if (e) return send(res, { error: e });
+    users()[OWNER] = pwRec(b.pw); delete cfg.pin; delete cfg.lock; save(); newSession(res, OWNER); return send(res, { ok: true });
   }
   if (u === '/api/lock_login') {
-    const b = await body(req); const now = Date.now();
+    const b = await body(req); const now = Date.now(); const name = String(b.user || '').trim();
     if (now < lkBlocked) return send(res, { error: `محاولات كتير غلط، استنى ${Math.ceil((lkBlocked - now) / 1000)} ثانية` });
-    if (String(b.user || '').trim() !== LOCK_USER || !pwOk(b.pw)) {
+    const r = users()[name];
+    if (!r || !pwOk(r, b.pw)) {
       await sleep(800);
       if (++lkFails >= 5) { lkFails = 0; lkBlocked = now + 60000; return send(res, { error: 'محاولات كتير غلط، البرنامج اتقفل دقيقة' }); }
       return send(res, { error: 'اسم المستخدم أو الباسورد غلط' });
     }
-    lkFails = 0; newSession(res); return send(res, { ok: true });
+    lkFails = 0;
+    if (r.off) return send(res, { error: 'off' });
+    newSession(res, name); return send(res, { ok: true });
   }
-  if (u === '/api/lock_logout') { tokens.delete(tok(req)); return send(res, { ok: true }); }
+  if (u === '/api/lock_logout') { sessions.delete(tok(req)); return send(res, { ok: true }); }
   if (!u.startsWith('/api/')) { res.writeHead(404); return res.end(); }
   if (!authed(req)) return send(res, { error: 'locked' }, 401);
   const b = req.method === 'POST' ? await body(req) : {};
   const ranges = Array.isArray(b.ranges) ? b.ranges.filter(okRange) : cfg.ranges;
   switch (u) {
     case '/api/progress': return send(res, progress);
-    case '/api/lock_change': {
-      if (!pwOk(b.old)) { await sleep(800); return send(res, { error: 'الباسورد الحالي غلط' }); }
-      if (!b.pw || String(b.pw).length < 4) return send(res, { error: 'الباسورد لازم يبقى 4 حروف أو أرقام على الأقل' });
-      cfg.lock = pwRec(b.pw); save(); return send(res, { ok: true });
+    case '/api/lock_who': { const n = who(req); return send(res, { name: n, owner: n === OWNER }); }
+    case '/api/lock_users': {
+      if (who(req) !== OWNER) return send(res, { users: [] });
+      return send(res, { users: [{ name: OWNER, owner: true, off: false }, ...Object.entries(users()).filter(([k]) => k !== OWNER).map(([k, v]) => ({ name: k, owner: false, off: !!v.off }))] });
+    }
+    case '/api/lock_add': {
+      if (who(req) !== OWNER) return send(res, { error: 'المدير بس اللي يقدر يضيف عملاء' });
+      const name = String(b.name || '').trim(); if (!name || name.length > 30) return send(res, { error: 'اكتب اسم العميل' });
+      if (users()[name]) return send(res, { error: 'الاسم ده موجود بالفعل' });
+      const e = badPw(b.pw); if (e) return send(res, { error: e });
+      users()[name] = pwRec(b.pw); save(); return send(res, { ok: true });
+    }
+    case '/api/lock_off': {
+      if (who(req) !== OWNER) return send(res, { error: 'المدير بس اللي يقدر يوقف عملاء' });
+      if (b.name === OWNER || !users()[b.name]) return send(res, { error: 'مينفعش' });
+      users()[b.name].off = !!b.off; save(); return send(res, { ok: true });
+    }
+    case '/api/lock_del': {
+      if (who(req) !== OWNER) return send(res, { error: 'المدير بس اللي يقدر يمسح عملاء' });
+      if (b.name === OWNER) return send(res, { error: 'مينفعش تمسح حساب المدير' });
+      delete users()[b.name]; save(); return send(res, { ok: true });
+    }
+    case '/api/lock_pass': {
+      const me = who(req), r = users()[b.name]; if (!r) return send(res, { error: 'المستخدم ده مش موجود' });
+      const self = b.name === me; if (!self && me !== OWNER) return send(res, { error: 'مينفعش تغيّر باسورد حد تاني' });
+      if (self && !pwOk(r, b.old)) { await sleep(800); return send(res, { error: 'الباسورد الحالي غلط' }); }
+      const e = badPw(b.pw); if (e) return send(res, { error: e });
+      users()[b.name] = pwRec(b.pw, !!r.off); save(); return send(res, { ok: true });
     }
     case '/api/version': return send(res, { name: APP_VERSION, code: APP_CODE });
     case '/api/upd_check': try { return send(res, await updCheck()); } catch (e) { return send(res, { error: 'مفيش نت أو مقدرتش أوصل لسيرفر التحديث' }); }
@@ -557,7 +563,7 @@ const server = http.createServer(async (req, res) => {
         for (const k of ['from', 'to', 'port', 'listen_port', 'mt_port']) if (+n[k]) cfg[k] = +n[k];
         save();
       }
-      return send(res, { config: { ...cfg, password: '', mt_pass: '', aps: undefined, lock: undefined, pin: undefined }, has_password: !!cfg.password, has_mt_password: !!cfg.mt_pass, ap_count: cfg.aps.length, urls: lanUrls() });
+      return send(res, { config: { ...cfg, password: '', mt_pass: '', aps: undefined, lock: undefined, pin: undefined, users: undefined, device_id: undefined, lic: undefined }, has_password: !!cfg.password, has_mt_password: !!cfg.mt_pass, ap_count: cfg.aps.length, urls: lanUrls() });
     case '/api/mt_test': try { const r = await mtOpen(); const id = await r.run('/system/identity/print'); r.close(); return send(res, { ok: true, name: (id[0] || {}).name }); } catch (e) { return send(res, { error: e.message }); }
     case '/api/ap_action': {
       const ip = String(b.ip || ''), act = b.action;

@@ -61,6 +61,7 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
 #updBar button{background:var(--gold);color:#1a1408;border:0;border-radius:8px;padding:8px 12px;font:inherit;font-weight:700}
 #refBtn{margin-inline-start:auto;background:transparent;border:1px solid var(--gold);color:var(--gold2);border-radius:12px;width:44px;height:44px;font-size:20px;cursor:pointer}
 #pullInd{position:fixed;top:0;left:50%;margin-left:-110px;width:220px;text-align:center;background:var(--gold);color:#1a1408;font-weight:700;padding:10px;border-radius:0 0 14px 14px;z-index:20;transform:translateY(-60px);opacity:0;transition:transform .15s,opacity .15s;pointer-events:none}
+.tag{display:inline-block;background:#3a2f12;color:var(--gold2);border-radius:20px;padding:2px 10px;font-size:12px;margin-inline-start:6px}
 #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--gold);color:#1a1408;padding:10px 18px;border-radius:10px;font-weight:700;display:none;z-index:9}
 </style>
 </head>
@@ -68,23 +69,10 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
 <header><div class="logo">M</div><div><h1>فحص عميل معلق</h1><small>المبرمج محمد سعيد — 01123840671</small></div><button id="refBtn" onclick="doRefresh()" title="تحديث">🔄</button></header>
 <div id="pullInd">⬇️ اسحب لتحت للتحديث</div>
 
-<div id="stopBox" class="hide"><main><div class="card" style="text-align:center;border-color:var(--bad)">
-  <div style="font-size:48px">⛔</div>
-  <h3 style="color:var(--bad);font-size:19px" id="stTitle">البرنامج متوقف</h3>
-  <div id="stMsg" style="line-height:1.9;margin:8px 0"></div>
-  <div style="color:var(--mut);font-size:13px">رقم الجهاز</div><div class="ltr" id="stId" onclick="stTap()" style="font-size:22px;color:var(--gold2);margin:4px 0 12px;user-select:none"></div>
-  <div id="stAdm" class="hide" style="text-align:right;border:1px dashed var(--gold);border-radius:10px;padding:10px;margin-bottom:10px">
-    <div style="color:var(--gold2);margin-bottom:6px">🔐 تفعيل جهاز المبرمج</div>
-    <div id="stTokBox"><label>مفتاح GitHub</label><input id="stTok" type="password" placeholder="github_pat_..."></div>
-    <button class="btn" style="width:100%;margin-top:8px" onclick="activateSelf()">✅ فعّل الجهاز ده</button><div id="stAdmMsg"></div>
-  </div>
-  <a class="btn big" style="display:block;text-decoration:none" id="stWa" href="https://wa.me/201123840671" target="_blank">💬 كلّم المبرمج محمد سعيد على واتساب</a>
-  <button class="btn ghost" style="width:100%;margin-top:8px" onclick="licRetry()">🔄 إعادة التحقق</button>
-</div></main></div>
 <div id="lockBox" class="hide"><main><div class="card">
   <h3 id="lkTitle">تسجيل الدخول</h3>
   <div id="lkNote" style="font-size:13px;color:var(--mut);line-height:1.7;margin-bottom:6px"></div>
-  <label>اسم المستخدم</label><input id="lkUser" value="M saeed" readonly style="opacity:.8">
+  <label>اسم المستخدم</label><input id="lkUser" autocapitalize="off" style="direction:ltr;text-align:left">
   <label>الباسورد</label><input id="lkPw" type="password" onkeydown="if(event.key==='Enter')lkGo()">
   <div id="lkPw2Box" class="hide"><label>اكتب الباسورد تاني</label><input id="lkPw2" type="password" onkeydown="if(event.key==='Enter')lkGo()"></div>
   <div style="height:12px"></div><button class="btn big" id="lkBtn" onclick="lkGo()">دخول</button>
@@ -134,17 +122,7 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
 </section>
 
 <section id="t-set" class="hide">
-  <div class="card">
-    <h3>الحساب</h3>
-    <div style="font-size:14px">انت داخل باسم <b class="ltr">M saeed</b></div>
-    <div style="font-size:14px;margin-top:6px">رقم الجهاز: <b class="ltr" id="accId" style="color:var(--gold2)"></b> <a style="color:var(--gold);cursor:pointer;font-size:13px" onclick="navigator.clipboard&&navigator.clipboard.writeText($('accId').textContent).then(()=>toast('اتنسخ'))">نسخ</a></div>
-    <details style="margin-top:10px"><summary>تغيير الباسورد</summary><div style="padding:0 12px 12px">
-      <label>الباسورد الحالي</label><input id="ak_old" type="password">
-      <label>الباسورد الجديد</label><input id="ak_new" type="password">
-      <label>اكتب الجديد تاني</label><input id="ak_new2" type="password">
-      <div style="height:10px"></div><button class="btn" onclick="lkChange()">حفظ الباسورد الجديد</button></div></details>
-    <button class="btn ghost" style="margin-top:10px;color:var(--bad);border-color:var(--bad)" onclick="lkOut()">تسجيل خروج</button>
-  </div>
+  <div class="card" id="usersCard"></div>
   <div class="card">
     <h3>التحديث</h3>
     <div style="font-size:14px">الإصدار اللي عندك: <b id="curVer" class="ltr"></b></div>
@@ -181,31 +159,9 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
     <div id="urls" style="margin-top:12px;font-size:13px"></div>
   </div>
   <button class="btn big" onclick="saveCfg()">حفظ</button>
-  <div class="card hide" id="admCard" style="margin-top:14px">
-    <details id="admDet" ontoggle="if(this.open)admLoad().catch(()=>{})"><summary style="font-size:16px">🔐 لوحة المبرمج (إيقاف العملاء)</summary><div style="padding:0 12px 12px">
-      <div id="admNoKey">
-        <div style="font-size:13px;color:var(--mut);line-height:1.8">اللوحة دي بتشتغل بمفتاح GitHub بتاعك، وبيتحفظ على الجهاز ده بس. حطه على موبايلك انت بس، مش على أجهزة العملاء.</div>
-        <label>مفتاح GitHub (Token)</label><input id="admTok" type="password" placeholder="github_pat_...">
-        <div class="row" style="margin-top:10px"><button class="btn" onclick="admSaveKey()">حفظ المفتاح</button><button class="btn ghost" onclick="admHowKey()">إزاي أعمل المفتاح؟</button></div>
-        <div id="admHow" class="hide" style="font-size:13px;line-height:1.9;margin-top:8px;color:var(--mut)">
-          1) ادخل على GitHub من المتصفح وسجّل دخول.<br>2) افتح: <a style="color:var(--gold2)" onclick="openUrl('https://github.com/settings/personal-access-tokens/new')">صفحة عمل مفتاح جديد</a><br>
-          3) الاسم: «فحص عميل معلق»، والمدة: من غير انتهاء أو سنة.<br>4) Repository access ← Only select repositories ← اختار <b class="ltr">msaeed-shop</b>.<br>
-          5) Permissions ← Repository permissions ← <b class="ltr">Contents</b> ← <b class="ltr">Read and write</b>.<br>6) Generate token، وانسخ المفتاح وحطه هنا.</div>
-      </div>
-      <div id="admPanel" class="hide">
-        <div id="admList" style="margin-top:6px"></div>
-        <div style="margin-top:12px;color:var(--gold2)">إضافة عميل</div>
-        <div class="row"><input id="admName" placeholder="اسم العميل" style="direction:rtl;text-align:right"><input id="admId" placeholder="MS-XXXXXX"></div>
-        <div class="row" style="margin-top:8px"><button class="btn" onclick="admAdd()">➕ إضافة</button><button class="btn ghost" onclick="admLoad().catch(()=>{})">🔄 تحديث</button></div>
-        <div style="font-size:12px;color:var(--mut);margin-top:10px;line-height:1.7">رقم جهاز العميل بيظهر في برنامجه في الإعدادات ← الحساب. الإيقاف أو التشغيل بيوصل لبرنامج العميل خلال حوالي 5 دقايق، أو أول ما يفتحه.</div>
-        <button class="btn ghost" style="margin-top:10px;font-size:13px;padding:8px" onclick="admForget()">مسح المفتاح من الجهاز ده</button>
-      </div>
-      <div id="admMsg"></div>
-    </div></details>
-  </div>
 </section>
 </main>
-<footer><span id="verTxt" onclick="admTap()" style="cursor:default;user-select:none"></span> برمجة <b>المبرمج محمد سعيد</b> — <a href="https://wa.me/201123840671" target="_blank">واتساب 01123840671</a></footer>
+<footer><span id="verTxt"></span> برمجة <b>المبرمج محمد سعيد</b> — <a href="https://wa.me/201123840671" target="_blank">واتساب 01123840671</a></footer>
 </div>
 <div id="toast"></div>
 
@@ -221,56 +177,59 @@ async function api(p,b){
     try{return JSON.parse(r)}catch(e){return {error:'خطأ في البرنامج'}}}
   const r=await fetch('/api/'+p,{method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});
   const j=await r.json().catch(()=>({error:'البرنامج مش بيرد'}));
-  if(j.error==='stopped'){licGate(true);throw 0}
   if(j.error==='locked'||j.error==='need_pin'){showLock('locked');throw 0}
   return j;
 }
-// ---------- الإيقاف من بعيد (لو العميل مادفعش) ----------
-let LIC={state:'ok',id:''};
-function licLocal(){try{return NATIVE?(Android.licInfo?JSON.parse(Android.licInfo()):{state:'ok',id:''}):null}catch(e){return {state:'ok',id:''}}}
-async function licFetch(check){if(NATIVE){if(!Android.licCheck)return licLocal();return JSON.parse(await new Promise(res=>{const id='c'+(++_cid);_cbs[id]=res;Android.licCheck(id)}))}
-  return await rawApi('lic',check?{}:undefined)}
-function showStop(i){$('app').classList.add('hide');$('lockBox').classList.add('hide');$('stopBox').classList.remove('hide');
-  const P=i.state==='pending';
-  $('stTitle').textContent=i.state==='offline'?'البرنامج محتاج يتصل بالنت':P?'البرنامج محتاج تفعيل':'البرنامج متوقف';
-  $('stMsg').textContent=i.state==='offline'?'البرنامج ماقدرش يتأكد من الاشتراك بقاله أكتر من 10 أيام. وصّل الموبايل بالنت ودوس «إعادة التحقق».'
-    :P?'الجهاز ده لسه مش متفعّل. ابعت رقم الجهاز للمبرمج محمد سعيد عشان يفعّله، وبعدها دوس «إعادة التحقق». (أول مرة لازم الموبايل يكون متوصل بالنت)':(i.msg||'');
-  $('stId').textContent=i.id||'';
-  $('stWa').href='https://wa.me/201123840671?text='+encodeURIComponent((P?'عايز أفعّل برنامج فحص عميل معلق — ':'')+'رقم الجهاز: '+(i.id||''))}
-let stTaps=0,stTapT=0;
-function stTap(){const n=Date.now();if(n-stTapT>1500)stTaps=0;stTapT=n;if(++stTaps>=7){stTaps=0;$('stAdm').classList.remove('hide');$('stTokBox').classList.toggle('hide',!!admKey())}}
-async function activateSelf(){const k=$('stTok').value.trim();if(k)try{localStorage.setItem('gh_tok',k);localStorage.setItem('adm_on','1')}catch(e){}
-  const m=$('stAdmMsg'),id=LIC.id;if(!admKey())return m.innerHTML='<div class="diag bad">حط مفتاح GitHub الأول</div>';
-  m.innerHTML='<div class="diag info"><span class="spin"></span> بفعّل الجهاز...</div>';
-  try{await admLoad(true);await admSave(d=>{if(!d.allowed.includes(id))d.allowed.push(id);d.blocked=d.blocked.filter(x=>x!==id);if(!d.customers[id])d.customers[id]='جهاز المبرمج'},'');
-    m.innerHTML='<div class="diag ok">✅ اتفعّل. بتحقق دلوقتي... لو لسه مقفول استنى دقيقة ودوس «إعادة التحقق».</div>';setTimeout(licRetry,3000)}
-  catch(e){m.innerHTML='<div class="diag bad">'+esc(e.message||'حصلت مشكلة')+'</div>'}}
-async function licGate(force){let i=licLocal();if(!i||force)i=await licFetch(false);LIC=i;
-  if(i.state!=='ok'){showStop(i);return false}
-  const chk=()=>licFetch(true).then(n=>{LIC=n;if(n.state!=='ok')showStop(n);else if($('accId'))$('accId').textContent=n.id}).catch(()=>{});
-  chk();if(!window.__licT)window.__licT=setInterval(chk,30*60e3);return true}
-async function licRetry(){toast('بتحقق...');const i=await licFetch(true);LIC=i;if(i.state==='ok'){$('stopBox').classList.add('hide');init()}else{showStop(i);toast('لسه متوقف')}}
-
 // ---------- القفل: اسم المستخدم ثابت M saeed ----------
 async function rawApi(p,b){const r=await fetch('/api/'+p,{method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});return r.json().catch(()=>({error:'البرنامج مش بيرد'}))}
+const B=(o)=>o;
 const LK={
   state:async()=>NATIVE?(Android.lockState?Android.lockState():'open'):(await rawApi('lock_state')).state,
   setup:async pw=>NATIVE?Android.lockSetup(pw):((await rawApi('lock_setup',{pw})).error||''),
-  login:async pw=>NATIVE?Android.lockLogin('M saeed',pw):((await rawApi('lock_login',{user:'M saeed',pw})).error||''),
-  change:async(o,n)=>NATIVE?Android.lockChange(o,n):((await rawApi('lock_change',{old:o,pw:n})).error||''),
+  login:async(u,pw)=>NATIVE?Android.lockLogin(u,pw):((await rawApi('lock_login',{user:u,pw})).error||''),
+  who:async()=>NATIVE?JSON.parse(Android.lockWho()):await rawApi('lock_who'),
+  users:async()=>NATIVE?JSON.parse(Android.lockUsers()):((await rawApi('lock_users')).users||[]),
+  add:async(n,pw)=>NATIVE?Android.lockAdd(n,pw):((await rawApi('lock_add',{name:n,pw})).error||''),
+  off:async(n,off)=>NATIVE?Android.lockOff(n,off):((await rawApi('lock_off',{name:n,off})).error||''),
+  del:async n=>NATIVE?Android.lockDel(n):((await rawApi('lock_del',{name:n})).error||''),
+  pass:async(n,o,pw)=>NATIVE?Android.lockPass(n,o,pw):((await rawApi('lock_pass',{name:n,old:o,pw})).error||''),
   logout:async()=>{if(NATIVE)Android.lockLogout();else await rawApi('lock_logout',{})}};
 let LKMODE='locked';
 function showLock(st){LKMODE=st;$('app').classList.add('hide');$('lockBox').classList.remove('hide');$('lkErr').innerHTML='';$('lkPw').value='';$('lkPw2').value='';
-  const setup=st==='setup';$('lkTitle').textContent=setup?'أول مرة: اعمل باسورد للبرنامج':'تسجيل الدخول';
-  $('lkNote').textContent=setup?'الباسورد ده هو اللي هيفتح البرنامج بعد كده، واسم المستخدم ثابت M saeed. الباسورد بيتحفظ متشفّر ومحدش يقدر يعرفه.':'البرنامج مقفول. ادخل بالباسورد.';
-  $('lkPw2Box').classList.toggle('hide',!setup);if(LIC.id)$('lkNote').textContent+=' — رقم الجهاز: '+LIC.id;$('lkBtn').textContent=setup?'حفظ الباسورد والدخول':'دخول';setTimeout(()=>$('lkPw').focus(),100)}
-async function lkGo(){const pw=$('lkPw').value;$('lkErr').innerHTML='';
+  const setup=st==='setup';$('lkTitle').textContent=setup?'أول تشغيل للبرنامج':'تسجيل الدخول';
+  $('lkNote').textContent=setup?'اعمل حساب المدير. الحساب ده هو اللي هيضيف العملاء بعد كده.':'ادخل باسمك والباسورد بتاعك.';
+  $('lkUser').readOnly=setup;$('lkUser').style.opacity=setup?.8:1;
+  let last='';try{last=localStorage.getItem('lastUser')||''}catch(e){}$('lkUser').value=setup?'M saeed':(last||'M saeed');
+  $('lkPw2Box').classList.toggle('hide',!setup);$('lkBtn').textContent=setup?'إنشاء حساب المدير':'دخول';setTimeout(()=>$('lkPw').focus(),100)}
+async function lkGo(){const pw=$('lkPw').value,u=$('lkUser').value.trim();$('lkErr').innerHTML='';
   if(LKMODE==='setup'&&pw!==$('lkPw2').value){$('lkErr').innerHTML='<div class="diag bad">الباسوردين مش زي بعض</div>';return}
-  $('lkBtn').disabled=true;let e;try{e=LKMODE==='setup'?await LK.setup(pw):await LK.login(pw)}catch(x){e='حصلت مشكلة'}$('lkBtn').disabled=false;
+  $('lkBtn').disabled=true;let e;try{e=LKMODE==='setup'?await LK.setup(pw):await LK.login(u,pw)}catch(x){e='حصلت مشكلة'}$('lkBtn').disabled=false;
+  if(e==='off'){$('lkErr').innerHTML='<div class="diag bad">⛔ الحساب <b>'+esc(u)+'</b> موقوف من المدير. كلّم المبرمج محمد سعيد على واتساب 01123840671.</div>';$('lkPw').value='';return}
   if(e){$('lkErr').innerHTML='<div class="diag bad">'+esc(e)+'</div>';$('lkPw').value='';return}
+  try{localStorage.setItem('lastUser',LKMODE==='setup'?'M saeed':u)}catch(x){}
   $('lockBox').classList.add('hide');init()}
-async function lkChange(){const o=$('ak_old').value,n=$('ak_new').value;if(n!==$('ak_new2').value)return toast('الباسورد الجديد مش زي بعض');
-  const e=await LK.change(o,n);if(e)return toast(e);['ak_old','ak_new','ak_new2'].forEach(i=>$(i).value='');toast('✅ الباسورد اتغيّر')}
+// ---------- صفحة المستخدمين والحساب ----------
+async function usersRender(){const box=$('usersCard');if(!box)return;let me={};try{me=await LK.who()}catch(e){}
+  const own=!!me.owner;let list=[];if(own)try{list=await LK.users()}catch(e){}
+  box.innerHTML=`<h3>المستخدمين والحساب</h3><div style="font-size:14px;color:var(--mut)">انت داخل باسم <b class="ltr" style="color:var(--txt)">${esc(me.name||'')}</b>${own?' (المدير)':' (عميل)'}</div>`+
+   (own?`<div style="border-top:1px solid var(--line);margin:10px 0"></div>`+list.map(u=>`<div class="gh" style="display:block;border-right-color:${u.off?'var(--bad)':'var(--ok)'}">
+     <div style="font-size:16px">👤 <b class="ltr">${esc(u.name)}</b> <span class="tag" style="direction:rtl">${u.owner?'المدير':'عميل'}</span>${u.off?' <span style="color:var(--bad)">⛔ موقوف</span>':''}</div>
+     ${u.owner?'':`<div class="row" style="margin-top:8px">${u.off?`<button class="btn" style="padding:7px;font-size:13px" onclick="uOff('${esc(u.name)}',false)">✅ تشغيل</button>`:`<button class="btn red" style="padding:7px;font-size:13px" onclick="uOff('${esc(u.name)}',true)">⛔ إيقاف</button>`}
+       <button class="btn ghost" style="padding:7px;font-size:13px" onclick="uPass('${esc(u.name)}')">🔑 باسورد</button><button class="btn ghost" style="padding:7px;font-size:13px" onclick="uDel('${esc(u.name)}')">مسح</button></div>`}</div>`).join('')+
+     `<button class="btn big" style="margin-top:10px" onclick="uAddForm()">+ مستخدم جديد</button>
+     <div id="uAdd" class="hide" style="margin-top:10px"><label>اسم العميل (إنجليزي أو عربي)</label><input id="uN" autocapitalize="off"><label>الباسورد بتاعه</label><input id="uP" type="password">
+       <div style="height:8px"></div><button class="btn" onclick="uAdd()">إضافة العميل</button></div>`:'')+
+   `<details style="margin-top:10px"><summary>تغيير الباسورد بتاعي</summary><div style="padding:0 12px 12px">
+      <label>الباسورد الحالي</label><input id="ak_old" type="password"><label>الباسورد الجديد</label><input id="ak_new" type="password"><label>اكتب الجديد تاني</label><input id="ak_new2" type="password">
+      <div style="height:10px"></div><button class="btn" onclick="lkChange('${esc(me.name||'')}')">حفظ الباسورد الجديد</button></div></details>
+    <button class="btn ghost" style="margin-top:10px;color:var(--bad);border-color:var(--bad);width:100%" onclick="lkOut()">تسجيل خروج</button>`}
+function uAddForm(){$('uAdd').classList.toggle('hide');setTimeout(()=>$('uN').focus(),50)}
+async function uAdd(){const n=$('uN').value.trim(),p=$('uP').value;const e=await LK.add(n,p);if(e)return toast(e);toast('✅ اتضاف العميل '+n);usersRender()}
+async function uOff(n,off){if(!confirm((off?'إيقاف':'تشغيل')+' حساب «'+n+'»؟'+(off?' (مش هيقدر يدخل البرنامج)':'')))return;const e=await LK.off(n,off);if(e)return toast(e);toast(off?'⛔ اتوقف '+n:'✅ اتشغّل '+n);usersRender()}
+async function uDel(n){if(!confirm('امسح حساب «'+n+'» خالص؟'))return;const e=await LK.del(n);if(e)return toast(e);toast('اتمسح');usersRender()}
+async function uPass(n){const p=prompt('الباسورد الجديد لـ «'+n+'»:');if(!p)return;const e=await LK.pass(n,'',p);if(e)return toast(e);toast('✅ اتغيّر باسورد '+n)}
+async function lkChange(me){const o=$('ak_old').value,n=$('ak_new').value;if(n!==$('ak_new2').value)return toast('الباسورد الجديد مش زي بعض');
+  const e=await LK.pass(me,o,n);if(e)return toast(e);['ak_old','ak_new','ak_new2'].forEach(i=>$(i).value='');toast('✅ الباسورد اتغيّر')}
 async function lkOut(){await LK.logout();showLock('locked')}
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
@@ -525,43 +484,6 @@ async function cdMt(btn){if(btn)btn.disabled=true;const r=await api('mt_fix',{ma
   $('cdLog').insertAdjacentHTML('beforeend',r.error?`<div class="diag bad">⛔ ${esc(r.error)}</div>`:r.log.map(l=>`<div class="diag ${l[0]==='✗'?'bad':'ok'}">${esc(l)}</div>`).join('')+'<div class="diag info">خلي العميل يقفل الواي فاي ويفتحه تاني، وصفحة الدخول هتظهرله.</div>')}
 async function cdFix(){if(!confirm('هنفّذ الحل على العميل '+CD.mac+'. أكمل؟'))return;$('cdFix').disabled=true;
   if(CD._stale.length)await cdKick();if(CD.mtOn&&CD.mt.ok&&CD._needMt)await cdMt();$('cdFix').textContent='✅ اتنفّذ';}
-// ---------- لوحة المبرمج: تعديل ghost-control.json على GitHub ----------
-const ADM_URL='https://api.github.com/repos/sm0902556-sketch/msaeed-shop/contents/ghost-control.json',ADM_REF='ghost-hunter';
-let ADM=null;
-function openUrl(u){if(NATIVE&&Android.openLink)Android.openLink(u);else window.open(u,'_blank')}
-const admKey=()=>{try{return localStorage.getItem('gh_tok')||''}catch(e){return ''}};
-const b64e=t=>btoa(unescape(encodeURIComponent(t))),b64d=t=>decodeURIComponent(escape(atob(t.replace(/\s/g,''))));
-async function ghReq(method,body){const r=await fetch(ADM_URL+(method==='GET'?'?ref='+ADM_REF+'&t='+Date.now():''),{method,headers:{Authorization:'Bearer '+admKey(),Accept:'application/vnd.github+json'},body:body?JSON.stringify(body):undefined});
-  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(r.status===401?'المفتاح غلط أو خلصت مدته':r.status===404?'المفتاح مالوش صلاحية على msaeed-shop':r.status===409?'الملف اتغيّر، اعمل تحديث وجرّب تاني':(j.message||('HTTP '+r.status)));return j}
-function admMsg(cls,t){if($('admMsg'))$('admMsg').innerHTML=t?`<div class="diag ${cls}">${esc(t)}</div>`:''}
-function admHowKey(){$('admHow').classList.toggle('hide')}
-async function admSaveKey(){const k=$('admTok').value.trim();if(!k)return;try{localStorage.setItem('gh_tok',k)}catch(e){}$('admTok').value='';
-  try{await admLoad();toast('✅ المفتاح شغال')}catch(e){}}
-function admForget(){if(!confirm('امسح مفتاح GitHub من الجهاز ده؟ (اللوحة هتختفي تاني)'))return;try{localStorage.removeItem('gh_tok');localStorage.removeItem('adm_on')}catch(e){}ADM=null;admRender();admShow()}
-// اللوحة مخفية: بتظهر بس على الجهاز اللي عليه المفتاح، أو بعد 7 ضغطات على رقم الإصدار
-function admShow(){let on=false;try{on=!!localStorage.getItem('gh_tok')||!!localStorage.getItem('adm_on')}catch(e){}if($('admCard'))$('admCard').classList.toggle('hide',!on)}
-let admTaps=0,admTapT=0;
-function admTap(){const n=Date.now();if(n-admTapT>1500)admTaps=0;admTapT=n;if(++admTaps>=7){admTaps=0;try{localStorage.setItem('adm_on','1')}catch(e){}admShow();
-  document.querySelector('nav button[data-t=set]').click();setTimeout(()=>{$('admCard').scrollIntoView({block:'start'});$('admDet').open=true},200);toast('🔐 لوحة المبرمج ظهرت')}}
-async function admLoad(silent){if(!admKey()){admRender();return}admMsg('info','بحمّل قايمة العملاء...');
-  try{const j=await ghReq('GET');const d=JSON.parse(b64d(j.content));ADM={sha:j.sha,data:{message:d.message||'',allowlist:true,allowed:d.allowed||[],blocked:d.blocked||[],customers:d.customers||{}}};admMsg('','');admRender()}
-  catch(e){admMsg('bad',e.message);ADM=null;admRender(true);throw e}}
-function admRender(keepKey){if(!$('admNoKey'))return;const has=!!admKey()&&!!ADM;$('admNoKey').classList.toggle('hide',has);$('admPanel').classList.toggle('hide',!has);if(!has)return;
-  const d=ADM.data,ids=[...new Set([...Object.keys(d.customers),...d.allowed,...d.blocked])];
-  $('admList').innerHTML=ids.length?ids.map(id=>{const st=d.blocked.includes(id)||!d.allowed.includes(id);return `<div class="gh" style="display:block;border-right-color:${st?'var(--bad)':'var(--ok)'}">
-    <div><b>${esc(d.customers[id]||'بدون اسم')}</b> — <span class="ltr" style="color:var(--gold2)">${esc(id)}</span> — ${st?'<span style="color:var(--bad)">⛔ موقوف</span>':'<span style="color:var(--ok)">✅ متفعّل</span>'}</div>
-    <div class="row" style="margin-top:8px">${st?`<button class="btn" style="padding:7px;font-size:13px" onclick="admSet('${esc(id)}',false)">✅ تفعيل</button>`:`<button class="btn red" style="padding:7px;font-size:13px" onclick="admSet('${esc(id)}',true)">⛔ إيقاف</button>`}
-    <button class="btn ghost" style="padding:7px;font-size:13px" onclick="admDel('${esc(id)}')">مسح</button></div></div>`}).join(''):'<div class="diag info">لسه مفيش عملاء. ضيف أول عميل تحت.</div>'}
-async function admSave(fn,ok){if(!ADM)return;const d=JSON.parse(JSON.stringify(ADM.data));fn(d);admMsg('info','بحفظ على GitHub...');
-  try{const txt=JSON.stringify({message:d.message,allowlist:true,allowed:d.allowed,blocked:d.blocked,customers:d.customers},null,2)+'\n';
-    const r=await ghReq('PUT',{message:'لوحة المبرمج: تحديث العملاء',content:b64e(txt),sha:ADM.sha,branch:ADM_REF});ADM={sha:r.content.sha,data:d};admRender();if(ok)admMsg('ok',ok)}
-  catch(e){admMsg('bad',e.message);throw e}}
-function admNorm(id){return String(id||'').trim().toUpperCase().replace(/^MS(?!-)/,'MS-')}
-async function admAdd(){const id=admNorm($('admId').value),name=$('admName').value.trim();if(!/^MS-[A-Z0-9]{6}$/.test(id))return toast('رقم الجهاز شكله كده: MS-7K2Q9F');
-  await admSave(d=>{d.customers[id]=name||d.customers[id]||'';if(!d.allowed.includes(id))d.allowed.push(id);d.blocked=d.blocked.filter(x=>x!==id)},'✅ اتضاف واتفعّل '+(name||id)).catch(()=>{});$('admId').value='';$('admName').value=''}
-async function admSet(id,stop){const n=ADM.data.customers[id]||id;if(!confirm((stop?'إيقاف':'تشغيل')+' البرنامج عند «'+n+'»؟'))return;
-  await admSave(d=>{d.blocked=d.blocked.filter(x=>x!==id);d.allowed=d.allowed.filter(x=>x!==id);if(stop)d.blocked.push(id);else d.allowed.push(id)},stop?'⛔ اتوقف عند '+n+' — هيوصله خلال دقايق':'✅ اتفعّل عند '+n).catch(()=>{})}
-async function admDel(id){if(!confirm('امسح العميل ده من القايمة؟ (البرنامج هيتقفل عنده لأنه مش متفعّل)'))return;await admSave(d=>{delete d.customers[id];d.blocked=d.blocked.filter(x=>x!==id);d.allowed=d.allowed.filter(x=>x!==id)},'اتمسح').catch(()=>{})}
 function toggleAll(){const box=$('allBox');if(box.innerHTML){box.innerHTML='';return}
   const gh=new Set(LAST.ghosts.map(g=>g.mac+'@'+g.ip));const by={};
   for(const x of LAST.all)(by[x.ip]=by[x.ip]||[]).push(x);
@@ -658,13 +580,12 @@ async function doRefresh(){
   addEventListener('touchend',()=>{const go=py!==null&&pd>100;py=null;pd=0;PI.style.transform='translateY(-60px)';PI.style.opacity=0;if(go)doRefresh()});
 })();
 async function init(){
-  try{if(!(await licGate(false)))return}catch(e){}
   let st='open';try{st=await LK.state()}catch(e){}
   if(st!=='open'){showLock(st);return}
   if(NATIVE){document.querySelectorAll('.pcOnly').forEach(e=>e.remove());try{$('curVer').textContent=Android.appVersion()}catch(e){}showJustUpdated();setTimeout(()=>{try{const p=Android.takeBgScan&&Android.takeBgScan();if(p)window.__bgScan(p)}catch(e){}},800)}
   else{try{const v=await api('version');$('curVer').textContent=v.name}catch(e){}}
   $('verTxt').textContent='إصدار '+$('curVer').textContent+' —';
-  setTimeout(()=>checkUpd(false),2500);try{await loadCfg();$('app').classList.remove('hide');$('lockBox').classList.add('hide');if(LIC.id)$('accId').textContent=LIC.id;admShow()}catch(e){}}
+  setTimeout(()=>checkUpd(false),2500);try{await loadCfg();$('app').classList.remove('hide');$('lockBox').classList.add('hide');usersRender()}catch(e){}}
 init();
 </script>
 </body>

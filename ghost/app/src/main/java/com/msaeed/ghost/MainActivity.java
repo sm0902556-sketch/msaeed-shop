@@ -35,7 +35,7 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     // زوّد الرقم ده (وفي ghost/engine-version.txt) لما تغيّر في كود الجافا
-    static final int ENGINE = 15;
+    static final int ENGINE = 16;
     static final String UPD = "https://github.com/sm0902556-sketch/msaeed-shop/releases/download/ghost-latest/";
 
     private WebView web;
@@ -164,7 +164,6 @@ public class MainActivity extends Activity {
                     if (wait > 0) Thread.sleep(wait);
                     KeepAlive.text(MainActivity.this, "بعمل فحص بعد الريستارت...");
                     String r = null;
-                    if (!License.ok(MainActivity.this)) return;
                     for (int i = 0; i < 12; i++) { // لو فيه فحص تاني شغال، استنى
                         r = engine.handle("scan", "{\"ranges\":" + rangesJson + "}");
                         if (!r.contains("فيه عملية شغالة")) break;
@@ -184,22 +183,17 @@ public class MainActivity extends Activity {
             });
         }
 
-        // ---------- الإيقاف من بعيد ----------
-        @JavascriptInterface public String licInfo() { return License.info(MainActivity.this); }
-        @JavascriptInterface public void licCheck(final String cbId) {
-            pool.submit(() -> {
-                String r = License.check(MainActivity.this);
-                final String js = "window.__cb(" + JSONObject.quote(cbId) + "," + JSONObject.quote(r) + ")";
-                runOnUiThread(() -> web.evaluateJavascript(js, null));
-            });
-        }
-
-        // ---------- القفل (اسم المستخدم ثابت M saeed) ----------
+        // ---------- المستخدمين (المدير M saeed + العملاء) ----------
         @JavascriptInterface public String lockState() { return Lock.state(MainActivity.this); }
-        @JavascriptInterface public String lockUser() { return Lock.USER; }
+        @JavascriptInterface public String lockOwner() { return Lock.OWNER; }
         @JavascriptInterface public String lockSetup(String pw) { try { return Lock.setup(MainActivity.this, pw); } catch (Exception e) { return "حصلت مشكلة"; } }
         @JavascriptInterface public String lockLogin(String user, String pw) { try { return Lock.login(MainActivity.this, user, pw); } catch (Exception e) { return "حصلت مشكلة"; } }
-        @JavascriptInterface public String lockChange(String o, String n) { try { return Lock.change(MainActivity.this, o, n); } catch (Exception e) { return "حصلت مشكلة"; } }
+        @JavascriptInterface public String lockWho() { try { return Lock.whoami(MainActivity.this); } catch (Exception e) { return "{}"; } }
+        @JavascriptInterface public String lockUsers() { try { return Lock.list(MainActivity.this); } catch (Exception e) { return "[]"; } }
+        @JavascriptInterface public String lockAdd(String n, String pw) { try { return Lock.addUser(MainActivity.this, n, pw); } catch (Exception e) { return "حصلت مشكلة"; } }
+        @JavascriptInterface public String lockOff(String n, boolean off) { try { return Lock.setOff(MainActivity.this, n, off); } catch (Exception e) { return "حصلت مشكلة"; } }
+        @JavascriptInterface public String lockDel(String n) { try { return Lock.delUser(MainActivity.this, n); } catch (Exception e) { return "حصلت مشكلة"; } }
+        @JavascriptInterface public String lockPass(String n, String o, String pw) { try { return Lock.setPassword(MainActivity.this, n, o, pw); } catch (Exception e) { return "حصلت مشكلة"; } }
         @JavascriptInterface public void lockLogout() { Lock.logout(); }
 
         @JavascriptInterface
@@ -214,7 +208,6 @@ public class MainActivity extends Activity {
                 String r;
                 try {
                     if ("upd_check".equals(path)) r = checkUpdate(false);
-                    else if (!License.ok(MainActivity.this)) r = Engine.err("stopped");  // البرنامج موقوف من المبرمج
                     else if (!Lock.isOpen(MainActivity.this)) r = Engine.err("locked");   // القفل في الجافا نفسه
                     else r = engine.handle(path, body);
                 } catch (Throwable t) {
