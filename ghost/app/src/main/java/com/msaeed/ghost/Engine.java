@@ -275,14 +275,14 @@ public class Engine {
         final int port = cfg.optInt("port", 22);
         // البحث الأول: كل العناوين
         progress("البحث الأول على الرينج", ips.size());
-        List<String> found = probeAll(ips, port, 60, 1500);
+        List<String> found = probeAll(ips, port, 120, 1200);
         // البحث التاني: العناوين اللي مردتش بس، بوقت انتظار أطول
         Set<String> got = new HashSet<>(found);
         List<String> rest = new ArrayList<>();
         for (String ip : ips) if (!got.contains(ip)) rest.add(ip);
         if (!rest.isEmpty()) {
             progress("البحث التاني (لقيت " + found.size() + " لحد دلوقتي)", rest.size());
-            found.addAll(probeAll(rest, port, 30, 3000));
+            found.addAll(probeAll(rest, port, 120, 2500));
         }
         Collections.sort(found, Engine::ipCmp);
         Set<String> rs = new HashSet<>(ranges);
@@ -370,7 +370,7 @@ public class Engine {
             cfg.put("aps", new JSONArray(l)); save();
         }
         progress("بفحص الأكسسات", targets.size());
-        List<Res> res = pool(targets, 25, ip -> ssh(ip, SCAN_CMD, null, 15000));
+        List<Res> res = pool(targets, 40, ip -> ssh(ip, SCAN_CMD, null, 12000));
         // إعادة محاولة للأكسسات اللي مردتش: عدد أقل في نفس الوقت ووقت أطول
         List<Integer> retry = new ArrayList<>();
         for (int i = 0; i < res.size(); i++) {
@@ -380,7 +380,7 @@ public class Engine {
         if (!retry.isEmpty()) {
             progress("بعيد المحاولة مع الأكسسات اللي مردتش", retry.size());
             final List<String> tg = targets;
-            List<Res> again = pool(retry, 5, i -> ssh(tg.get(i), SCAN_CMD, null, 30000));
+            List<Res> again = pool(retry, 15, i -> ssh(tg.get(i), SCAN_CMD, null, 20000));
             for (int k = 0; k < retry.size(); k++) if (again.get(k) != null) res.set(retry.get(k), again.get(k));
         }
         List<AP> ok = new ArrayList<>();

@@ -29,6 +29,7 @@ label{display:block;margin:10px 0 5px;color:var(--mut);font-size:13px}
 .btn.red{background:var(--bad);color:#fff}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{border:1px solid var(--line);border-radius:20px;padding:7px 12px;cursor:pointer;direction:ltr;font-size:13px;user-select:none;color:var(--mut)}
+.chip .x{margin-inline-start:8px;opacity:.6;font-weight:700;padding:0 2px}
 .chip.on{background:var(--gold);border-color:var(--gold);color:#1a1408;font-weight:700}
 .mini{display:flex;gap:8px;margin-top:8px;font-size:13px}.mini a{color:var(--gold);cursor:pointer}
 .diag{padding:10px 12px;border-radius:10px;margin:8px 0;border-right:4px solid;background:#0c0a06;line-height:1.7}
@@ -79,6 +80,7 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
     <h3>اختار الرينجات اللي هتتفحص</h3>
     <div style="font-size:13px;color:var(--mut);margin-bottom:8px">دوس على الرينج عشان تختاره (هيبقى دهبي)، ودوس تاني عشان تشيله.</div>
     <div id="scanChips" class="chips"></div>
+    <div class="row" style="margin-top:10px"><input id="newRange" placeholder="رينج جديد: 192.168.55" inputmode="decimal" onkeydown="if(event.key==='Enter')addRange()"><button class="btn" style="flex:0 0 auto" onclick="addRange()">➕ إضافة</button></div>
     <div class="mini"><a onclick="allChips('scanChips',1)">تحديد الكل</a>·<a onclick="allChips('scanChips',0)">إلغاء الكل</a></div>
     <div style="font-size:13px;color:var(--mut);margin-top:8px">البحث بيلف على الرينج مرتين، من .2 لـ .254، عشان يلاقي كل الأكسسات حتى البطيئة.</div>
     <button class="btn big" style="margin-top:10px" id="scanBtn" onclick="doScan()">🔍 ابدأ الفحص</button>
@@ -104,7 +106,7 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
 </section>
 
 <section id="t-set" class="hide">
-  <div class="card nativeOnly">
+  <div class="card">
     <h3>التحديث</h3>
     <div style="font-size:14px">الإصدار اللي عندك: <b id="curVer" class="ltr"></b></div>
     <div id="updSt" style="font-size:14px;margin-top:8px;color:var(--mut);line-height:1.7"></div>
@@ -143,7 +145,7 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
   <button class="btn big" onclick="saveCfg()">حفظ</button>
 </section>
 </main>
-<footer>برمجة <b>المبرمج محمد سعيد</b> — <a href="https://wa.me/201123840671" target="_blank">واتساب 01123840671</a></footer>
+<footer><span id="verTxt"></span> برمجة <b>المبرمج محمد سعيد</b> — <a href="https://wa.me/201123840671" target="_blank">واتساب 01123840671</a></footer>
 </div>
 <div id="toast"></div>
 
@@ -169,8 +171,18 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   ['scan','inst','set'].forEach(t=>$('t-'+t).classList.toggle('hide',t!==b.dataset.t));
 });
 function chips(id){let sel=[];try{sel=JSON.parse(localStorage.getItem('sel_'+id)||'[]')}catch(e){}
-  $(id).innerHTML=CFG.ranges.map(r=>`<span class="chip ${sel.includes(r)?'on':''}" data-r="${esc(r)}">${esc(r)}.x</span>`).join('');
-  $(id).querySelectorAll('.chip').forEach(c=>c.onclick=()=>{c.classList.toggle('on');saveSel(id)});updCount()}
+  $(id).innerHTML=CFG.ranges.map(r=>`<span class="chip ${sel.includes(r)?'on':''}" data-r="${esc(r)}">${esc(r)}.x${id==='scanChips'?'<span class="x" title="حذف">✕</span>':''}</span>`).join('');
+  $(id).querySelectorAll('.chip').forEach(c=>c.onclick=e=>{if(e.target.classList.contains('x'))return delRange(c.dataset.r);c.classList.toggle('on');saveSel(id)});updCount()}
+async function addRange(){let v=$('newRange').value.trim().replace(/\.x$/i,'').replace(/\.$/,'');
+  const p=v.split('.');if(p.length===4)v=p.slice(0,3).join('.');
+  if(!/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(v)||v.split('.').some(n=>+n>255))return toast('اكتب الرينج كده: 192.168.55');
+  if(CFG.ranges.includes(v)){toast('الرينج ده موجود');}else{
+    const j=await api('config',{config:{ranges:[...CFG.ranges,v]}});if(j.error)return toast(j.error);CFG.ranges=j.config.ranges;$('c_ranges').value=CFG.ranges.join('\n')}
+  try{const k='sel_scanChips';const sel=JSON.parse(localStorage.getItem(k)||'[]');if(!sel.includes(v)){sel.push(v);localStorage.setItem(k,JSON.stringify(sel))}}catch(e){}
+  $('newRange').value='';chips('scanChips');chips('instChips');toast('اتضاف \u2066'+v+'.x\u2069')}
+async function delRange(r){if(!confirm('امسح الرينج '+r+'.x من القايمة؟'))return;
+  const j=await api('config',{config:{ranges:CFG.ranges.filter(x=>x!==r)}});if(j.error)return toast(j.error);
+  CFG.ranges=j.config.ranges;$('c_ranges').value=CFG.ranges.join('\n');chips('scanChips');chips('instChips');toast('اتمسح')}
 function saveSel(id){try{localStorage.setItem('sel_'+id,JSON.stringify(picked(id)))}catch(e){}updCount()}
 function allChips(id,on){$(id).querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',!!on));saveSel(id)}
 function rngTxt(l){return l.length===1?'\u2066'+l[0]+'.x\u2069':l.length+' رينجات'}
@@ -280,15 +292,28 @@ async function saveCfg(quiet){
     ranges:$('c_ranges').value.split(/[\s,]+/).map(s=>s.replace(/\.x$|\.$/,'')).filter(Boolean),from:+$('c_from').value,to:+$('c_to').value,mt_on:$('m_on').checked,mt_ip:$('m_ip').value,mt_port:+$('m_port').value||0,mt_user:$('m_user').value,mt_pass:$('m_pass').value,mt_clear:$('m_clear').checked,pin:NATIVE?'':$('c_pin').value,listen_port:NATIVE?0:+$('c_lport').value}});
   if(j.error)return toast(j.error);$('c_pass').value='';$('m_pass').value='';if(quiet!==true)toast('اتحفظ');loadCfg();
 }
-async function checkUpd(manual){if(!NATIVE)return;if(manual)$('updSt').textContent='بدوّر على تحديث...';
+async function checkUpd(manual){if(manual)$('updSt').textContent='بدوّر على تحديث...';
   let v;try{v=await api('upd_check')}catch(e){return}
   if(v.error){if(manual)$('updSt').textContent=v.error;return}
   if(v.updated){$('updSt').textContent='✅ اتحدّث للإصدار '+v.name+'، بيعيد الفتح...';return}
-  if(v.apk){NEWAPK=v.url;const bb=$('updBar').querySelector('button');bb.textContent='نزّل';bb.onclick=applyUpd;$('updTxt').textContent='🎉 فيه إصدار جديد '+v.name+' محتاج يتنزّل';$('updBar').style.display='flex';
-    $('updSt').innerHTML='الإصدار <b class="ltr">'+esc(v.name)+'</b> محتاج تنزّله من المتصفح وتثبّته فوق القديم.'+(v.notes?'<br>الجديد: '+esc(v.notes):'');$('updGo').classList.remove('hide');return}
+  if(v.apk||(v.pc&&v.newer)){NEWAPK=v.apk?v.url:null;const bb=$('updBar').querySelector('button');
+    bb.textContent=v.apk?'نزّل':'تحديث دلوقتي';bb.onclick=applyUpd;
+    $('updTxt').textContent='🎉 فيه إصدار جديد '+v.name+(v.apk?' محتاج يتنزّل':'');$('updBar').style.display='flex';
+    $('updSt').innerHTML='فيه إصدار جديد <b class="ltr">'+esc(v.name)+'</b>'+(v.apk?' — نزّله من المتصفح وثبّته فوق القديم.':'')+(v.notes?'<br>الجديد: '+esc(v.notes):'');
+    $('updGo').textContent=v.apk?'⬇️ نزّل النسخة الجديدة':'⬆️ حدّث دلوقتي';$('updGo').classList.remove('hide');return}
   if(manual)$('updSt').textContent='✅ عندك أحدث إصدار';}
 let NEWAPK=null;
-function applyUpd(){if(NEWAPK)Android.openLink(NEWAPK);else checkUpd(true)}
+async function applyUpd(){
+  if(NATIVE){if(NEWAPK)Android.openLink(NEWAPK);else checkUpd(true);return}
+  document.querySelector('nav button[data-t=set]').click();$('updGo').disabled=true;$('updBar').style.display='none';
+  const st=$('updSt');st.textContent='بنزّل التحديث...';
+  const t=setInterval(async()=>{try{const p=await api('progress');if(p.busy)st.textContent='بنزّل التحديث... '+p.done+'%'}catch(e){}},800);
+  let r;try{r=await api('upd_go')}catch(e){r={error:'حصلت مشكلة'}}finally{clearInterval(t)}
+  if(r.error){st.textContent=r.error;$('updGo').disabled=false;return}
+  st.textContent='✅ اتنزل. البرنامج بيعيد تشغيل نفسه بالنسخة الجديدة...';
+  const wait=async()=>{try{const v=await fetch('/api/version',{cache:'no-store'}).then(x=>x.json());if(v.name)return location.reload()}catch(e){}setTimeout(wait,1500)};
+  setTimeout(wait,4000);
+}
 function showJustUpdated(){try{const j=Android.justUpdated();if(!j)return;const v=JSON.parse(j);
   $('updTxt').textContent='🎉 اتحدّث البرنامج للإصدار '+v.name+(v.notes?' — '+v.notes:'');$('updBar').style.display='flex';
   $('updBar').querySelector('button').textContent='تمام';$('updBar').querySelector('button').onclick=()=>$('updBar').style.display='none'}catch(e){}}
@@ -307,7 +332,11 @@ async function doRefresh(){
       PI.textContent=pd>100?'↻ سيب عشان يتحدّث':'⬇️ اسحب لتحت للتحديث'}},{passive:true});
   addEventListener('touchend',()=>{const go=py!==null&&pd>100;py=null;pd=0;PI.style.transform='translateY(-60px)';PI.style.opacity=0;if(go)doRefresh()});
 })();
-async function init(){if(NATIVE){document.querySelectorAll('.pcOnly').forEach(e=>e.remove());try{$('curVer').textContent=Android.appVersion()}catch(e){}showJustUpdated();setTimeout(()=>checkUpd(false),2500)}else document.querySelectorAll('.nativeOnly').forEach(e=>e.remove());try{await loadCfg();$('app').classList.remove('hide');$('pinBox').classList.add('hide')}catch(e){}}
+async function init(){
+  if(NATIVE){document.querySelectorAll('.pcOnly').forEach(e=>e.remove());try{$('curVer').textContent=Android.appVersion()}catch(e){}showJustUpdated()}
+  else{try{const v=await api('version');$('curVer').textContent=v.name}catch(e){}}
+  $('verTxt').textContent='إصدار '+$('curVer').textContent+' —';
+  setTimeout(()=>checkUpd(false),2500);try{await loadCfg();$('app').classList.remove('hide');$('pinBox').classList.add('hide')}catch(e){}}
 init();
 </script>
 </body>
