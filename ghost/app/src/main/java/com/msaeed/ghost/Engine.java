@@ -239,16 +239,25 @@ public class Engine {
         return out;
     }
 
-    private List<String> discover(List<String> ranges) throws Exception {
-        final List<String> ips = ipsOf(ranges);
-        progress("بدوّر على الأكسسات في الرينجات", ips.size());
-        final int port = cfg.optInt("port", 22);
-        List<Boolean> res = pool(ips, 120, ip -> {
-            try (Socket so = new Socket()) { so.connect(new InetSocketAddress(ip, port), 900); return true; }
+    private List<String> probeAll(List<String> ips, int port, int threads, int timeout) throws Exception {
+        List<Boolean> res = pool(ips, threads, ip -> {
+            try (Socket so = new Socket()) { so.connect(new InetSocketAddress(ip, port), timeout); return true; }
             catch (Exception e) { return false; }
         });
         List<String> found = new ArrayList<>();
         for (int i = 0; i < ips.size(); i++) if (Boolean.TRUE.equals(res.get(i))) found.add(ips.get(i));
+        return found;
+    }
+
+    private List<String> discover(List<String> ranges) throws Exception {
+        final List<String> ips = ipsOf(ranges);
+        progress("بدوّر على الأكسسات في الرينجات", ips.size());
+        final int port = cfg.optInt("port", 22);
+        List<String> found = probeAll(ips, port, 80, 1200);
+        if (found.isEmpty()) { // الشبكة كانت بطيئة: نعيد بوقت انتظار أطول
+            progress("مالقيتش أكسسات، بعيد التدوير بوقت أطول", ips.size());
+            found = probeAll(ips, port, 40, 2500);
+        }
         Set<String> rs = new HashSet<>(ranges);
         List<String> all = new ArrayList<>();
         JSONArray old = cfg.optJSONArray("aps");
