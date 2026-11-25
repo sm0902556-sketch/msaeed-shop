@@ -1,6 +1,6 @@
 package com.msaeed.ghost;
 
-// صياد الشبح - المبرمج محمد سعيد - 01123840671
+// فحص عميل معلق - المبرمج محمد سعيد - 01123840671
 //
 // التحديث زي برنامج مصنع الأمانة: الواجهة (index.html) بتتسحب من GitHub
 // وتتحفظ على الفون وتشتغل على طول من غير تثبيت APK.
@@ -126,7 +126,7 @@ public class MainActivity extends Activity {
         if (eng > ENGINE) return r.put("apk", true).put("url", UPD + "MsaeedGhostHunter.apk").toString();
         byte[] html = get(UPD + "index.html");
         String h = new String(html, StandardCharsets.UTF_8);
-        if (html.length < 2000 || !h.contains("صياد الشبح")) throw new Exception("bad file");
+        if (html.length < 2000 || !(h.contains("صياد الشبح") || h.contains("فحص عميل معلق"))) throw new Exception("bad file");
         File tmp = new File(getFilesDir(), "index.html.tmp");
         try (FileOutputStream out = new FileOutputStream(tmp)) { out.write(html); }
         if (!tmp.renameTo(webFile())) throw new Exception("save failed");

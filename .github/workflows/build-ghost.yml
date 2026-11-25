@@ -1,5 +1,5 @@
 name: Build Ghost Hunter (APK + EXE)
-# صياد الشبح - المبرمج محمد سعيد
+# فحص عميل معلق - المبرمج محمد سعيد
 # كل تحديث بيطلّع نسخة الفون ونسخة الكمبيوتر بنفس رقم الإصدار
 on:
   push:
@@ -77,7 +77,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ghost-latest
-          name: صياد الشبح - آخر نسخة
+          name: فحص عميل معلق - آخر نسخة
           make_latest: false
           files: |
             out/MsaeedGhostHunter.apk

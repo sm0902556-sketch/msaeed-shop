@@ -1,4 +1,4 @@
-// صياد الشبح - M saeed Ghost Hunter
+// فحص عميل معلق - M saeed Stuck Client Finder
 // المبرمج محمد سعيد - 01123840671
 'use strict';
 const http = require('http');
@@ -471,7 +471,7 @@ server.on('error', e => {
 });
 server.listen(cfg.listen_port, '0.0.0.0', () => {
   console.log('==============================================');
-  console.log('  M saeed Ghost Hunter ' + APP_VERSION + '  -  01123840671');
+  console.log('  M saeed Stuck Clients ' + APP_VERSION + '  -  01123840671');
   console.log('==============================================');
   console.log('  PC     : ' + local);
   for (const u of lanUrls()) console.log('  Mobile : ' + u);

@@ -1,7 +1,7 @@
 {
   "name": "msaeed-ghost-hunter",
   "version": "1.0.0",
-  "description": "صياد الشبح - المبرمج محمد سعيد",
+  "description": "فحص عميل معلق - المبرمج محمد سعيد",
   "scripts": {
     "build": "sh build.sh"
   },
