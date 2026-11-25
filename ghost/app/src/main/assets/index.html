@@ -29,7 +29,7 @@ label{display:block;margin:10px 0 5px;color:var(--mut);font-size:13px}
 .btn.red{background:var(--bad);color:#fff}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{border:1px solid var(--line);border-radius:20px;padding:7px 12px;cursor:pointer;direction:ltr;font-size:13px;user-select:none;color:var(--mut)}
-.chip.on{background:#3a2f12;border-color:var(--gold);color:var(--gold2)}
+.chip.on{background:var(--gold);border-color:var(--gold);color:#1a1408;font-weight:700}
 .mini{display:flex;gap:8px;margin-top:8px;font-size:13px}.mini a{color:var(--gold);cursor:pointer}
 .diag{padding:10px 12px;border-radius:10px;margin:8px 0;border-right:4px solid;background:#0c0a06;line-height:1.7}
 .diag.bad{border-color:var(--bad)}.diag.warn{border-color:var(--warn)}.diag.ok{border-color:var(--ok)}.diag.info{border-color:var(--info)}
@@ -71,6 +71,7 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
 <section id="t-scan">
   <div class="card">
     <h3>اختار الرينجات اللي هتتفحص</h3>
+    <div style="font-size:13px;color:var(--mut);margin-bottom:8px">دوس على الرينج عشان تختاره (هيبقى دهبي)، ودوس تاني عشان تشيله.</div>
     <div id="scanChips" class="chips"></div>
     <div class="mini"><a onclick="allChips('scanChips',1)">تحديد الكل</a>·<a onclick="allChips('scanChips',0)">إلغاء الكل</a></div>
     <label class="mini" style="align-items:center"><input type="checkbox" id="redisc" style="width:18px;height:18px;accent-color:var(--gold)"> دوّر على الأكسسات من جديد (لو ضفت أكسسات جديدة)</label>
@@ -84,7 +85,7 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
 <section id="t-inst" class="hide">
   <div class="card">
     <h3>تركيب سكريبت msaeed-ghost</h3>
-    <div style="font-size:13px;color:var(--mut);line-height:1.8;margin-bottom:10px">السكريبت بيخلي كل أكسس يكشف العميل الشبح ويفصله لوحده أوتوماتيك، من غير ما تفتح البرنامج. اختار الرينجات اللي عايز تركّبه عليها:</div>
+    <div style="font-size:13px;color:var(--mut);line-height:1.8;margin-bottom:10px">السكريبت بيخلي كل أكسس يكشف العميل الشبح ويفصله لوحده أوتوماتيك، من غير ما تفتح البرنامج. اختار الرينجات اللي عايز تركّبه عليها (الدهبي هو المتحدد):</div>
     <div id="instChips" class="chips"></div>
     <div class="mini"><a onclick="allChips('instChips',1)">تحديد الكل</a>·<a onclick="allChips('instChips',0)">إلغاء الكل</a></div>
     <div class="row" style="margin-top:12px">
@@ -143,9 +144,16 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
   ['scan','inst','set'].forEach(t=>$('t-'+t).classList.toggle('hide',t!==b.dataset.t));
 });
-function chips(id){$(id).innerHTML=CFG.ranges.map(r=>`<span class="chip on" data-r="${esc(r)}">${esc(r)}.x</span>`).join('');
-  $(id).querySelectorAll('.chip').forEach(c=>c.onclick=()=>c.classList.toggle('on'))}
-function allChips(id,on){$(id).querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',!!on))}
+function chips(id){let sel=[];try{sel=JSON.parse(localStorage.getItem('sel_'+id)||'[]')}catch(e){}
+  $(id).innerHTML=CFG.ranges.map(r=>`<span class="chip ${sel.includes(r)?'on':''}" data-r="${esc(r)}">${esc(r)}.x</span>`).join('');
+  $(id).querySelectorAll('.chip').forEach(c=>c.onclick=()=>{c.classList.toggle('on');saveSel(id)});updCount()}
+function saveSel(id){try{localStorage.setItem('sel_'+id,JSON.stringify(picked(id)))}catch(e){}updCount()}
+function allChips(id,on){$(id).querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',!!on));saveSel(id)}
+function rngTxt(l){return l.length===1?'\u2066'+l[0]+'.x\u2069':l.length+' رينجات'}
+function updCount(){const a=picked('scanChips'),b=picked('instChips');
+  $('scanBtn').textContent=a.length?'🔍 افحص '+rngTxt(a):'اختار رينج الأول';
+  $('instBtn').textContent=b.length?'⬇️ تركيب على '+rngTxt(b):'⬇️ تركيب';
+  $('remBtn').textContent=b.length?'إزالة من '+rngTxt(b):'إزالة';}
 const picked=id=>[...$(id).querySelectorAll('.chip.on')].map(c=>c.dataset.r);
 
 // progress polling while a request runs
@@ -161,11 +169,11 @@ async function doScan(){
   const ranges=picked('scanChips');if(!ranges.length)return toast('اختار رينج واحد على الأقل');
   let j;try{j=await withProgress('scanProg',['scanBtn'],()=>api('scan',{ranges,rediscover:$('redisc').checked}))}catch(e){return}
   if(j.error){$('scanRes').innerHTML=`<div class="card"><div class="diag bad">${esc(j.error)}</div></div>`;return}
-  LAST=j;$('redisc').checked=false;renderScan();
+  j.ranges=ranges;LAST=j;$('redisc').checked=false;renderScan();
 }
 function renderScan(){
   const j=LAST;
-  let h=`<div class="card"><div class="stats">
+  let h=`<div class="card"><div style="font-size:13px;color:var(--mut);margin-bottom:8px">اتفحص: <span class="ltr" style="color:var(--gold2)">${esc(j.ranges.map(r=>r+'.x').join('  '))}</span></div><div class="stats">
     <div class="stat"><b>${j.okCount}</b>أكسس اتفحص</div><div class="stat"><b>${j.clients}</b>عميل متوصل</div>
     <div class="stat ${j.ghosts.length?'red':''}"><b>${j.ghosts.length}</b>عميل شبح</div><div class="stat"><b>${j.installed}/${j.okCount}</b>عليهم السكريبت</div></div>`;
   if(!j.scanned)h+='<div class="diag warn">⚠️ مالقيتش أي أكسس في الرينجات دي. اتأكد إنك على نفس الشبكة، أو علّم على «دوّر على الأكسسات من جديد».</div>';
