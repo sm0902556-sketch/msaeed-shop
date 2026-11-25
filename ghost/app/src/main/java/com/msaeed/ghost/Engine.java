@@ -100,13 +100,20 @@ public class Engine {
                 return p.toString();
             }
             case "diag": return diag(b.optString("ip")).toString();
+            case "mt_test": {
+                try (Ros r = mtOpen()) {
+                    List<Map<String, String>> id = r.run("/system/identity/print");
+                    return new JSONObject().put("ok", true).put("name", id.isEmpty() ? "" : id.get(0).get("name")).toString();
+                } catch (Exception e) { return err(e.getMessage()); }
+            }
             case "config": {
                 if (b.has("config")) saveConfig(b.getJSONObject("config"));
                 JSONObject c = new JSONObject(cfg.toString());
                 boolean has = !c.optString("password").isEmpty();
                 c.put("password", ""); c.remove("aps"); c.put("native", true);
+                boolean hasMt = !c.optString("mt_pass").isEmpty(); c.put("mt_pass", "");
                 JSONObject o = new JSONObject();
-                o.put("config", c); o.put("has_password", has); o.put("ap_count", cfg.optJSONArray("aps").length()); o.put("urls", new JSONArray());
+                o.put("config", c); o.put("has_password", has); o.put("has_mt_password", hasMt); o.put("ap_count", cfg.optJSONArray("aps").length()); o.put("urls", new JSONArray());
                 return o.toString();
             }
         }
@@ -134,7 +141,12 @@ public class Engine {
         if (n.has("user")) cfg.put("user", n.optString("user").trim());
         if (!n.optString("password").isEmpty()) cfg.put("password", n.optString("password"));
         if (n.optBoolean("clear_password")) cfg.put("password", "");
-        for (String k : new String[]{"from", "to", "port"}) if (n.optInt(k) > 0) cfg.put(k, n.optInt(k));
+        for (String k : new String[]{"from", "to", "port", "mt_port"}) if (n.optInt(k) > 0) cfg.put(k, n.optInt(k));
+        if (n.has("mt_on")) cfg.put("mt_on", n.optBoolean("mt_on"));
+        if (n.has("mt_ip")) cfg.put("mt_ip", n.optString("mt_ip").trim());
+        if (n.has("mt_user")) cfg.put("mt_user", n.optString("mt_user").trim());
+        if (!n.optString("mt_pass").isEmpty()) cfg.put("mt_pass", n.optString("mt_pass"));
+        if (n.optBoolean("mt_clear")) cfg.put("mt_pass", "");
         save();
     }
 
@@ -389,10 +401,56 @@ public class Engine {
             }
         }
         JSONObject o = new JSONObject();
+        if (cfg.optBoolean("mt_on") && !cfg.optString("mt_ip", "").isEmpty()) {
+            progress("بجيب IP العملاء من المايكروتك", 1);
+            try {
+                Map<String, String[]> cm = clientMap();
+                addClient(ghosts, cm); addClient(dups, cm); addClient(all, cm);
+            } catch (Exception e) { o.put("mtErr", e.getMessage()); }
+        }
         o.put("scanned", targets.size()); o.put("okCount", ok.size()); o.put("failed", failed);
         o.put("installed", installed); o.put("clients", byMac.size()); o.put("ghosts", ghosts);
         o.put("dups", dups); o.put("all", all); o.put("aps", apList);
         return o;
+    }
+
+    // ---------------- IP العملاء من المايكروتك ----------------
+    private Ros mtOpen() throws Exception {
+        String ip = cfg.optString("mt_ip", "");
+        if (ip.isEmpty()) throw new Exception("اكتب IP المايكروتك في الإعدادات");
+        return new Ros(ip, cfg.optInt("mt_port", 8728), cfg.optString("mt_user", "admin"), cfg.optString("mt_pass", ""));
+    }
+
+    // mac (lowercase) -> [ip, user, name]
+    private Map<String, String[]> clientMap() throws Exception {
+        Map<String, String[]> m = new HashMap<>();
+        try (Ros r = mtOpen()) {
+            for (Map<String, String> x : r.run("/ip/dhcp-server/lease/print", "=.proplist=mac-address,address,host-name")) {
+                String mac = String.valueOf(x.get("mac-address")).toLowerCase();
+                m.put(mac, new String[]{x.getOrDefault("address", ""), "", x.getOrDefault("host-name", "")});
+            }
+            try {
+                for (Map<String, String> x : r.run("/ip/hotspot/host/print", "=.proplist=mac-address,address")) {
+                    String mac = String.valueOf(x.get("mac-address")).toLowerCase();
+                    String[] v = m.computeIfAbsent(mac, k -> new String[]{"", "", ""});
+                    if (v[0].isEmpty()) v[0] = x.getOrDefault("address", "");
+                }
+                for (Map<String, String> x : r.run("/ip/hotspot/active/print", "=.proplist=mac-address,address,user")) {
+                    String mac = String.valueOf(x.get("mac-address")).toLowerCase();
+                    String[] v = m.computeIfAbsent(mac, k -> new String[]{"", "", ""});
+                    v[0] = x.getOrDefault("address", v[0]); v[1] = x.getOrDefault("user", "");
+                }
+            } catch (Exception e) { } // مفيش هوتسبوت
+        }
+        return m;
+    }
+
+    static void addClient(JSONArray a, Map<String, String[]> m) throws Exception {
+        for (int i = 0; i < a.length(); i++) {
+            JSONObject o = a.getJSONObject(i);
+            String[] v = m.get(o.optString("mac"));
+            if (v != null) { o.put("cip", v[0]); o.put("cuser", v[1]); o.put("cname", v[2]); }
+        }
     }
 
     // ---------------- اختبار أكسس خطوة بخطوة ----------------
