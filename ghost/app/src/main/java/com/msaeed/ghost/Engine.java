@@ -272,13 +272,19 @@ public class Engine {
 
     private List<String> discover(List<String> ranges) throws Exception {
         final List<String> ips = ipsOf(ranges);
-        progress("بدوّر على الأكسسات في الرينجات", ips.size());
         final int port = cfg.optInt("port", 22);
-        List<String> found = probeAll(ips, port, 80, 1200);
-        if (found.isEmpty()) { // الشبكة كانت بطيئة: نعيد بوقت انتظار أطول
-            progress("مالقيتش أكسسات، بعيد التدوير بوقت أطول", ips.size());
-            found = probeAll(ips, port, 40, 2500);
+        // البحث الأول: كل العناوين
+        progress("البحث الأول على الرينج", ips.size());
+        List<String> found = probeAll(ips, port, 60, 1500);
+        // البحث التاني: العناوين اللي مردتش بس، بوقت انتظار أطول
+        Set<String> got = new HashSet<>(found);
+        List<String> rest = new ArrayList<>();
+        for (String ip : ips) if (!got.contains(ip)) rest.add(ip);
+        if (!rest.isEmpty()) {
+            progress("البحث التاني (لقيت " + found.size() + " لحد دلوقتي)", rest.size());
+            found.addAll(probeAll(rest, port, 30, 3000));
         }
+        Collections.sort(found, Engine::ipCmp);
         Set<String> rs = new HashSet<>(ranges);
         List<String> all = new ArrayList<>();
         JSONArray old = cfg.optJSONArray("aps");
@@ -348,11 +354,21 @@ public class Engine {
     }
 
     private JSONObject scan(List<String> ranges, boolean rediscover) throws Exception {
-        List<String> targets = new ArrayList<>();
-        JSONArray aps = cfg.optJSONArray("aps");
+        // الأكسسات اللي اتلقت قبل كده بتتفحص برضه حتى لو مردتش في البحث
         Set<String> rs = new HashSet<>(ranges);
-        for (int i = 0; aps != null && i < aps.length(); i++) if (rs.contains(rangeOf(aps.optString(i)))) targets.add(aps.optString(i));
-        if (rediscover || targets.isEmpty()) targets = discover(ranges);
+        Set<String> prev = new HashSet<>();
+        JSONArray aps = cfg.optJSONArray("aps");
+        for (int i = 0; aps != null && i < aps.length(); i++) if (rs.contains(rangeOf(aps.optString(i)))) prev.add(aps.optString(i));
+        Set<String> tset = new HashSet<>(discover(ranges));
+        tset.addAll(prev);
+        List<String> targets = new ArrayList<>(tset);
+        Collections.sort(targets, Engine::ipCmp);
+        if (!prev.isEmpty()) { // رجّع القديم للكاش
+            JSONArray now = cfg.optJSONArray("aps"); Set<String> all = new HashSet<>();
+            for (int i = 0; i < now.length(); i++) all.add(now.optString(i));
+            all.addAll(prev); List<String> l = new ArrayList<>(all); Collections.sort(l, Engine::ipCmp);
+            cfg.put("aps", new JSONArray(l)); save();
+        }
         progress("بفحص الأكسسات", targets.size());
         List<Res> res = pool(targets, 25, ip -> ssh(ip, SCAN_CMD, null, 15000));
         // إعادة محاولة للأكسسات اللي مردتش: عدد أقل في نفس الوقت ووقت أطول

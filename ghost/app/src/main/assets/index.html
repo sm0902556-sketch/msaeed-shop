@@ -80,7 +80,7 @@ footer{text-align:center;padding:18px;color:var(--mut);font-size:13px} footer a{
     <div style="font-size:13px;color:var(--mut);margin-bottom:8px">دوس على الرينج عشان تختاره (هيبقى دهبي)، ودوس تاني عشان تشيله.</div>
     <div id="scanChips" class="chips"></div>
     <div class="mini"><a onclick="allChips('scanChips',1)">تحديد الكل</a>·<a onclick="allChips('scanChips',0)">إلغاء الكل</a></div>
-    <label class="mini" style="align-items:center"><input type="checkbox" id="redisc" style="width:18px;height:18px;accent-color:var(--gold)"> دوّر على الأكسسات من جديد (لو ضفت أكسسات جديدة)</label>
+    <div style="font-size:13px;color:var(--mut);margin-top:8px">البحث بيلف على الرينج مرتين، من .2 لـ .254، عشان يلاقي كل الأكسسات حتى البطيئة.</div>
     <button class="btn big" style="margin-top:10px" id="scanBtn" onclick="doScan()">🔍 ابدأ الفحص</button>
     <div class="mut" style="font-size:12px;margin-top:8px;color:var(--mut)">الفحص بيكشف بس، ومش بيفصل أي حد غير لما تدوس «فصل المحدد».</div>
     <div id="scanProg"></div>
@@ -191,9 +191,9 @@ const sec=ms=>{ms=+ms||0;const s=Math.round(ms/1000);return s<60?s+' ثانية'
 
 async function doScan(){
   const ranges=picked('scanChips');if(!ranges.length)return toast('اختار رينج واحد على الأقل');
-  let j;try{j=await withProgress('scanProg',['scanBtn'],()=>api('scan',{ranges,rediscover:$('redisc').checked}))}catch(e){return}
+  let j;try{j=await withProgress('scanProg',['scanBtn'],()=>api('scan',{ranges}))}catch(e){return}
   if(j.error){$('scanRes').innerHTML=`<div class="card"><div class="diag bad">${esc(j.error)}</div></div>`;return}
-  j.ranges=ranges;LAST=j;$('redisc').checked=false;renderScan();
+  j.ranges=ranges;LAST=j;renderScan();
 }
 function renderScan(){
   const j=LAST;
@@ -201,7 +201,7 @@ function renderScan(){
     <div class="stat"><b>${j.okCount}</b>أكسس اتفحص</div><div class="stat"><b>${j.clients}</b>عميل متوصل</div>
     <div class="stat ${j.ghosts.length?'red':''}"><b>${j.ghosts.length}</b>عميل شبح</div><div class="stat"><b>${j.installed}/${j.okCount}</b>عليهم السكريبت</div></div>`;
   if(j.all.length)h+=`<button class="btn ghost" style="width:100%;margin-bottom:8px" onclick="toggleAll()">📋 كل العملاء على الرينج (${j.clients})</button><div id="allBox"></div>`;
-  if(!j.scanned)h+='<div class="diag warn">⚠️ مالقيتش أي أكسس في الرينجات دي. اتأكد إنك على نفس الشبكة، أو علّم على «دوّر على الأكسسات من جديد».</div>';
+  if(!j.scanned)h+='<div class="diag warn">⚠️ مالقيتش أي أكسس في الرينجات دي. اتأكد إنك على نفس الشبكة، أو اتأكد إن الرينج صح في الإعدادات.</div>';
   if(j.mtErr)h+=`<div class="diag warn">⚠️ مقدرتش أجيب IP العملاء من المايكروتك: ${esc(j.mtErr)}</div>`;
   if(j.failed.length)h+=`<div class="diag warn">⚠️ ${j.failed.length} أكسس ماقدرتش أدخلهم (شوف التفاصيل تحت).</div>`;
   if(!j.ghosts.length&&j.okCount)h+='<div class="diag ok">✅ مفيش أي عميل شبح دلوقتي.</div>';
