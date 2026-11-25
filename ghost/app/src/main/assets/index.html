@@ -216,13 +216,13 @@ async function usersRender(){const box=$('usersCard');if(!box)return;let me={};t
      <div style="font-size:16px">👤 <b class="ltr">${esc(u.name)}</b> <span class="tag" style="direction:rtl">${u.owner?'المدير':'عميل'}</span>${u.off?' <span style="color:var(--bad)">⛔ موقوف</span>':''}</div>
      ${u.owner?'':`<div class="row" style="margin-top:8px">${u.off?`<button class="btn" style="padding:7px;font-size:13px" onclick="uOff('${esc(u.name)}',false)">✅ تشغيل</button>`:`<button class="btn red" style="padding:7px;font-size:13px" onclick="uOff('${esc(u.name)}',true)">⛔ إيقاف</button>`}
        <button class="btn ghost" style="padding:7px;font-size:13px" onclick="uPass('${esc(u.name)}')">🔑 باسورد</button><button class="btn ghost" style="padding:7px;font-size:13px" onclick="uDel('${esc(u.name)}')">مسح</button></div>`}</div>`).join('')+
-     `<button class="btn big" style="margin-top:10px" onclick="uAddForm()">+ مستخدم جديد</button>
+     `<button class="btn big" style="margin-top:12px" onclick="uAddForm()">+ مستخدم جديد</button>
      <div id="uAdd" class="hide" style="margin-top:10px"><label>اسم العميل (إنجليزي أو عربي)</label><input id="uN" autocapitalize="off"><label>الباسورد بتاعه</label><input id="uP" type="password">
        <div style="height:8px"></div><button class="btn" onclick="uAdd()">إضافة العميل</button></div>`:'')+
-   `<details style="margin-top:10px"><summary>تغيير الباسورد بتاعي</summary><div style="padding:0 12px 12px">
-      <label>الباسورد الحالي</label><input id="ak_old" type="password"><label>الباسورد الجديد</label><input id="ak_new" type="password"><label>اكتب الجديد تاني</label><input id="ak_new2" type="password">
-      <div style="height:10px"></div><button class="btn" onclick="lkChange('${esc(me.name||'')}')">حفظ الباسورد الجديد</button></div></details>
-    <button class="btn ghost" style="margin-top:10px;color:var(--bad);border-color:var(--bad);width:100%" onclick="lkOut()">تسجيل خروج</button>`}
+   `<div class="row" style="margin-top:10px"><button class="btn ghost" style="color:var(--txt);border-color:var(--line)" onclick="$('chPw').classList.toggle('hide')">تغيير الباسورد بتاعي</button>
+      <button class="btn ghost" style="color:var(--bad);border-color:var(--line)" onclick="lkOut()">تسجيل خروج</button></div>
+    <div id="chPw" class="hide" style="margin-top:8px"><label>الباسورد الحالي</label><input id="ak_old" type="password"><label>الباسورد الجديد</label><input id="ak_new" type="password"><label>اكتب الجديد تاني</label><input id="ak_new2" type="password">
+      <div style="height:10px"></div><button class="btn" onclick="lkChange('${esc(me.name||'')}')">حفظ الباسورد الجديد</button></div>`}
 function uAddForm(){$('uAdd').classList.toggle('hide');setTimeout(()=>$('uN').focus(),50)}
 async function uAdd(){const n=$('uN').value.trim(),p=$('uP').value;const e=await LK.add(n,p);if(e)return toast(e);toast('✅ اتضاف العميل '+n);usersRender()}
 async function uOff(n,off){if(!confirm((off?'إيقاف':'تشغيل')+' حساب «'+n+'»؟'+(off?' (مش هيقدر يدخل البرنامج)':'')))return;const e=await LK.off(n,off);if(e)return toast(e);toast(off?'⛔ اتوقف '+n:'✅ اتشغّل '+n);usersRender()}
