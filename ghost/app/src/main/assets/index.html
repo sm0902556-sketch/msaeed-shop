@@ -271,13 +271,32 @@ async function fixOne(ip,act,btn){if(!confirm('هنفّذ على '+ip+': '+PLAN[
   btn.disabled=true;const t=btn.textContent;btn.textContent='بنفّذ...';let r;try{r=await runPlan(ip,act)}catch(e){r={ok:false,msg:'حصلت مشكلة'}}
   btn.textContent=r.ok?'✅ اتنفّذ':t;if(!r.ok)btn.disabled=false;toast((r.ok?'✅ ':'⛔ ')+ip+': '+r.msg)}
 async function fixAll(){const list=(LAST._bad||[]).filter(x=>x.plan);if(!list.length)return;
-  if(!confirm('هنفّذ الحل على '+list.length+' أكسس فيهم مشاكل، واحد ورا التاني:\n'+list.map(x=>x.a.ip+' ← '+PLAN[x.plan]).join('\n')+'\n\nأكمل؟'))return;
+  const kicks=list.filter(x=>x.plan==='kick'),acts=list.filter(x=>x.plan!=='kick'),rb=acts.filter(x=>x.plan==='reboot');
+  if(!confirm('هنفّذ الحل على '+list.length+' أكسس:\n'+list.map(x=>x.a.ip+' ← '+PLAN[x.plan]).join('\n')+
+    '\n\nالطريقة: هبعت الأمر لكل الأجهزة مع بعض وهي لسه متوصلة، وكلهم هينفّذوا في نفس اللحظة بعد حوالي 25 ثانية، عشان الأجهزة اللي ورا بعض في السلك ماتتقطعش قبل ما يوصلها الأمر.'+
+    (rb.length?'\n\n⚠️ الأجهزة اللي هتعمل ريستارت ('+rb.length+') هتقف حوالي دقيقة، ومعاها أي أكسس وراها في السلك.':'')+'\n\nأكمل؟'))return;
   const btn=$('fixAllBtn'),log=$('fixAllLog');btn.disabled=true;log.innerHTML='';
-  for(const x of list){const line=document.createElement('div');line.className='diag info';line.innerHTML='<span class="spin"></span> <b class="ltr">'+esc(x.a.ip)+'</b>: '+esc(PLAN[x.plan]);log.appendChild(line);
-    let r;try{r=await runPlan(x.a.ip,x.plan)}catch(e){r={ok:false,msg:'حصلت مشكلة'}}
-    line.className='diag '+(r.ok?'ok':'bad');line.innerHTML=(r.ok?'✅ ':'⛔ ')+'<b class="ltr">'+esc(x.a.ip)+'</b>: '+esc(r.msg);
-    const b=document.querySelector('[data-fix="'+x.a.ip+'"]');if(b&&r.ok){b.textContent='✅ اتنفّذ';b.disabled=true}}
-  btn.disabled=false;btn.textContent='🛠️ خلصت — اعمل فحص تاني بعد دقيقة عشان تتأكد'}
+  const add=(cls,html)=>{const d=document.createElement('div');d.className='diag '+cls;d.innerHTML=html;log.appendChild(d);return d};
+  const mark=(ip)=>{const b=document.querySelector('[data-fix="'+ip+'"]');if(b){b.textContent='✅ اتنفّذ';b.disabled=true}};
+  // 1) فصل العملاء الشبح (مش بيقطع حاجة)
+  for(const x of kicks){const l=add('info','<span class="spin"></span> <b class="ltr">'+esc(x.a.ip)+'</b>: بفصل العملاء الشبح');
+    let r;try{r=await runPlan(x.a.ip,'kick')}catch(e){r={ok:false,msg:'حصلت مشكلة'}}
+    l.className='diag '+(r.ok?'ok':'bad');l.innerHTML=(r.ok?'✅ ':'⛔ ')+'<b class="ltr">'+esc(x.a.ip)+'</b>: '+esc(r.msg);if(r.ok)mark(x.a.ip)}
+  // 2) إرسال الأوامر لكل الأجهزة مع بعض، والتنفيذ في نفس اللحظة
+  if(acts.length){const W=25,t0=Date.now();
+    const info=add('info','<span class="spin"></span> ببعت أمر الإصلاح لـ '+acts.length+' أكسس مع بعض...');
+    const res=await Promise.all(acts.map(async x=>{const d=Math.max(5,Math.round(W-(Date.now()-t0)/1000));
+      let r;try{r=await api('ap_action',{ip:x.a.ip,action:x.plan,delay:d})}catch(e){r={error:'حصلت مشكلة'}}
+      return {x,r}}));
+    const okN=res.filter(o=>!o.r.error).length;
+    info.className='diag '+(okN===acts.length?'ok':'warn');
+    info.innerHTML=(okN===acts.length?'✅ ':'⚠️ ')+'الأمر وصل لـ '+okN+' من '+acts.length+' أكسس، وهينفّذوا مع بعض خلال ثواني.';
+    for(const {x,r} of res){if(r.error)add('bad','⛔ <b class="ltr">'+esc(x.a.ip)+'</b>: '+esc(r.error));else{mark(x.a.ip);add('ok','✅ <b class="ltr">'+esc(x.a.ip)+'</b>: '+esc(PLAN[x.plan]))}}
+    // 3) فحص تاني أوتوماتيك عشان نتأكد
+    const cd=add('info','');let left=rb.length?150:60;
+    const tick=()=>{if(!document.body.contains(cd))return;if(left<=0){cd.innerHTML='🔍 بعمل فحص تاني عشان أتأكد...';doScan(true);return}
+      cd.innerHTML='⏳ هعمل فحص تاني لوحدي بعد '+left+' ثانية عشان أتأكد إن الأجهزة رجعت والمشاكل اتحلت.';left--;setTimeout(tick,1000)};tick();}
+  btn.disabled=false;btn.textContent='🛠️ اتبعت الحل لكل الأجهزة';}
 async function apAct(ip,act,btn){
   if(!confirm(act==='wifi'?'هعيد تشغيل الواي فاي على '+ip+'، والعملاء اللي عليه هيفصلوا ثواني ويرجعوا. أكمل؟':'هعمل ريستارت للأكسس '+ip+'، وهيقف حوالي دقيقة. أكمل؟'))return;
   btn.disabled=true;const t=btn.textContent;btn.textContent='...';

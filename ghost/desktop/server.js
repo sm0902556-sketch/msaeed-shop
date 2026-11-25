@@ -436,7 +436,8 @@ const server = http.createServer(async (req, res) => {
     case '/api/ap_action': {
       const ip = String(b.ip || ''), act = b.action;
       if (!reIp.test(ip)) return send(res, { error: 'IP غلط' });
-      const cmd = act === 'wifi' ? '(sleep 1; wifi) >/dev/null 2>&1 </dev/null & echo DONE_OK' : act === 'reboot' ? '(sleep 1; reboot) >/dev/null 2>&1 </dev/null & echo DONE_OK' : null;
+      const d = Math.max(1, Math.min(120, parseInt(b.delay) || 1)); // تأخير بالثواني قبل التنفيذ
+      const cmd = act === 'wifi' ? `(sleep ${d}; wifi) >/dev/null 2>&1 </dev/null & echo DONE_OK` : act === 'reboot' ? `(sleep ${d}; reboot) >/dev/null 2>&1 </dev/null & echo DONE_OK` : null;
       if (!cmd) return send(res, { error: 'أمر غير معروف' });
       const r = await sshRun(ip, cmd, null, 20000);
       return send(res, r.ok && r.out.includes('DONE_OK') ? { ok: true } : { error: r.err || 'مارجعش رد' });

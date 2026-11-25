@@ -103,8 +103,9 @@ public class Engine {
             case "ap_action": {
                 String ip = b.optString("ip"), act = b.optString("action");
                 if (!IP.matcher(ip).matches()) return err("IP غلط");
-                String cmd = "wifi".equals(act) ? "(sleep 1; wifi) >/dev/null 2>&1 </dev/null & echo DONE_OK"
-                           : "reboot".equals(act) ? "(sleep 1; reboot) >/dev/null 2>&1 </dev/null & echo DONE_OK" : null;
+                int d = Math.max(1, Math.min(120, b.optInt("delay", 1))); // تأخير بالثواني قبل التنفيذ
+                String cmd = "wifi".equals(act) ? "(sleep " + d + "; wifi) >/dev/null 2>&1 </dev/null & echo DONE_OK"
+                           : "reboot".equals(act) ? "(sleep " + d + "; reboot) >/dev/null 2>&1 </dev/null & echo DONE_OK" : null;
                 if (cmd == null) return err("أمر غير معروف");
                 Res r = ssh(ip, cmd, null, 20000);
                 return (r.ok && r.out.contains("DONE_OK")) ? "{\"ok\":true}" : err(r.err.isEmpty() ? "مارجعش رد" : r.err);
