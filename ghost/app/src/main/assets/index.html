@@ -203,7 +203,10 @@ function renderScan(){
   h+=`<div class="card"><h3>دوّر على عميل</h3><input id="find" placeholder="اكتب MAC أو جزء منه" oninput="findMac()"><div id="findRes" style="margin-top:8px"></div></div>`;
   if(j.dups.length)h+=`<div class="card"><details><summary>عملاء ظاهرين على أكسسين بس مش أكيد شبح (${j.dups.length})</summary><div class="tw"><table><tr><th>MAC</th><th>AP</th><th>idle</th><th>real AP</th></tr>${j.dups.map(d=>`<tr><td>${esc(d.mac)}</td><td>${esc(d.ip)}</td><td>${sec(d.inactive)}</td><td>${esc(d.real)}</td></tr>`).join('')}</table></div></details></div>`;
   h+=`<div class="card"><details><summary>الأكسسات (${j.aps.length})</summary><div class="tw"><table><tr><th>IP</th><th>name</th><th>clients</th><th>script</th></tr>${j.aps.map(a=>`<tr><td>${esc(a.ip)}</td><td>${esc(a.host)}</td><td>${a.n}</td><td class="${a.installed?'okc':'badc'}">${a.installed?'✓':'✗'}</td></tr>`).join('')}</table></div></details>`;
-  if(j.failed.length)h+=`<details><summary>أكسسات ماقدرتش أدخلها (${j.failed.length})</summary><div class="tw"><table>${j.failed.map(f=>`<tr><td>${esc(f.ip)}</td><td>${esc(f.err)}</td></tr>`).join('')}</table></div></details>`;
+  if(j.failed.length)h+=`<details ${j.okCount?'':'open'}><summary>أكسسات ماقدرتش أدخلها (${j.failed.length})</summary>
+    <div style="font-size:12px;color:var(--mut);padding:0 12px 8px">دوس «اختبار» عشان تعرف المشكلة بالظبط.</div>
+    <div class="tw"><table>${j.failed.map(f=>`<tr><td>${esc(f.ip)}</td><td style="direction:rtl;text-align:right;white-space:normal">${esc(f.err)}</td><td><button class="btn" style="padding:6px 10px;font-size:13px" onclick="doDiag('${esc(f.ip)}')">اختبار</button></td></tr>`).join('')}</table></div>
+    <div id="diagRes" style="padding:0 12px 12px"></div></details>`;
   h+='</div>';
   $('scanRes').innerHTML=h;
 }
@@ -212,6 +215,11 @@ function findMac(){
   const r=LAST.all.filter(x=>x.mac.replace(/:/g,'').includes(q));
   $('findRes').innerHTML=r.length?`<div class="tw"><table><tr><th>MAC</th><th>AP</th><th>name</th><th>iface</th><th>idle</th><th>signal</th></tr>${r.slice(0,50).map(x=>`<tr><td>${esc(x.mac)}</td><td>${esc(x.ip)}</td><td>${esc(x.host)}</td><td>${esc(x.iface)}</td><td>${sec(x.inactive)}</td><td>${esc(x.signal)}</td></tr>`).join('')}</table></div>`:'<div class="diag warn">مش متوصل على أي أكسس اتفحص</div>';
 }
+async function doDiag(ip){const box=$('diagRes');box.innerHTML=`<div class="diag info"><span class="spin"></span> بختبر <b class="ltr">${esc(ip)}</b>... ممكن ياخد لحد دقيقة</div>`;
+  box.scrollIntoView({block:'nearest'});
+  let j;try{j=await api('diag',{ip})}catch(e){return}
+  if(j.error){box.innerHTML=`<div class="diag bad">${esc(j.error)}</div>`;return}
+  box.innerHTML=`<div style="margin-top:8px;color:var(--gold2)">اختبار <b class="ltr">${esc(ip)}</b>:</div>`+j.steps.map(x=>`<div class="diag ${x.ok?'ok':'bad'}" style="font-size:13px;word-break:break-word">${x.ok?'✅':'⛔'} ${esc(x.text)}</div>`).join('');}
 async function doKick(){
   const items=[...document.querySelectorAll('.gk:checked')].map(c=>LAST.ghosts[+c.dataset.i]).map(g=>({ip:g.ip,iface:g.iface,mac:g.mac}));
   if(!items.length)return toast('مفيش حاجة متحددة');

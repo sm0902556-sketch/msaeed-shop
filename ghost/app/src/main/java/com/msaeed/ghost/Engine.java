@@ -99,6 +99,7 @@ public class Engine {
                 p.put("busy", busy.get()); p.put("text", pText); p.put("done", pDone.get()); p.put("total", pTotal.get());
                 return p.toString();
             }
+            case "diag": return diag(b.optString("ip")).toString();
             case "config": {
                 if (b.has("config")) saveConfig(b.getJSONObject("config"));
                 JSONObject c = new JSONObject(cfg.toString());
@@ -171,16 +172,24 @@ public class Engine {
     static String arErr(Throwable e) {
         String m = String.valueOf(e.getMessage());
         if (m.contains("Auth fail") || m.contains("Auth cancel")) return "اسم المستخدم أو الباسورد غلط";
-        if (m.contains("timeout") || m.contains("timed out")) return "الأكسس مش بيرد";
+        if (m.contains("cmdtimeout")) return "دخلت على الأكسس بس الأمر ماخلصش في الوقت";
+        if (m.contains("socket is not established")) return "بورت 22 مش بيرد";
+        if (m.contains("Algorithm negotiation")) return "الـ SSH بتاع الأكسس قديم ومش متوافق (" + m + ")";
+        if (m.contains("timeout") || m.contains("timed out")) return "الأكسس مارجّعش رد SSH في الوقت";
         if (m.contains("refused")) return "الـ SSH مقفول على الأكسس";
         if (m.contains("unreachable") || m.contains("No route")) return "مش قادر أوصل للأكسس";
         return m;
     }
 
-    static class Res { String ip, out = "", err = ""; boolean ok; }
+    static class Res { String ip, out = "", err = "", raw = ""; boolean ok; long ms; }
 
     private Res ssh(String ip, String cmd, String stdin, int timeout) {
         Res r = new Res(); r.ip = ip;
+        long t0 = System.currentTimeMillis();
+        try { return sshInner(r, ip, cmd, stdin, timeout); } finally { r.ms = System.currentTimeMillis() - t0; }
+    }
+
+    private Res sshInner(Res r, String ip, String cmd, String stdin, int timeout) {
         Session s = null; ChannelExec ch = null;
         final String pass = cfg.optString("password", "");
         try {
@@ -205,12 +214,12 @@ public class Engine {
                 while (in.available() > 0) { int n = in.read(buf); if (n < 0) break; bo.write(buf, 0, n); }
                 while (er.available() > 0) { int n = er.read(buf); if (n < 0) break; be.write(buf, 0, n); }
                 if (ch.isClosed() && in.available() == 0) break;
-                if (System.currentTimeMillis() > dead) throw new Exception("timeout");
+                if (System.currentTimeMillis() > dead) throw new Exception("cmdtimeout");
                 Thread.sleep(40);
             }
             r.out = bo.toString("UTF-8"); r.err = be.toString("UTF-8"); r.ok = true;
         } catch (Throwable e) {
-            r.ok = false; r.err = arErr(e);
+            r.ok = false; r.err = arErr(e); r.raw = String.valueOf(e);
         } finally {
             try { if (ch != null) ch.disconnect(); } catch (Exception e) { }
             try { if (s != null) s.disconnect(); } catch (Exception e) { }
@@ -333,7 +342,19 @@ public class Engine {
         for (int i = 0; aps != null && i < aps.length(); i++) if (rs.contains(rangeOf(aps.optString(i)))) targets.add(aps.optString(i));
         if (rediscover || targets.isEmpty()) targets = discover(ranges);
         progress("بفحص الأكسسات", targets.size());
-        List<Res> res = pool(targets, 25, ip -> ssh(ip, SCAN_CMD, null, 12000));
+        List<Res> res = pool(targets, 25, ip -> ssh(ip, SCAN_CMD, null, 15000));
+        // إعادة محاولة للأكسسات اللي مردتش: عدد أقل في نفس الوقت ووقت أطول
+        List<Integer> retry = new ArrayList<>();
+        for (int i = 0; i < res.size(); i++) {
+            Res x = res.get(i);
+            if (x == null || (!x.ok && !x.err.contains("الباسورد"))) retry.add(i);
+        }
+        if (!retry.isEmpty()) {
+            progress("بعيد المحاولة مع الأكسسات اللي مردتش", retry.size());
+            final List<String> tg = targets;
+            List<Res> again = pool(retry, 5, i -> ssh(tg.get(i), SCAN_CMD, null, 30000));
+            for (int k = 0; k < retry.size(); k++) if (again.get(k) != null) res.set(retry.get(k), again.get(k));
+        }
         List<AP> ok = new ArrayList<>();
         JSONArray failed = new JSONArray(), apList = new JSONArray();
         int installed = 0;
@@ -341,7 +362,7 @@ public class Engine {
             Res r = res.get(i);
             if (r == null) { r = new Res(); r.ip = targets.get(i); r.err = "error"; }
             AP ap = parse(r);
-            if (!ap.ok) { failed.put(new JSONObject().put("ip", ap.ip).put("err", ap.err)); continue; }
+            if (!ap.ok) { failed.put(new JSONObject().put("ip", ap.ip).put("err", ap.err).put("raw", r.raw)); continue; }
             ok.add(ap);
             if (ap.installed) installed++;
             apList.put(new JSONObject().put("ip", ap.ip).put("host", ap.host).put("n", ap.st.size()).put("installed", ap.installed));
@@ -373,6 +394,41 @@ public class Engine {
         o.put("dups", dups); o.put("all", all); o.put("aps", apList);
         return o;
     }
+
+    // ---------------- اختبار أكسس خطوة بخطوة ----------------
+    private JSONObject diag(String ip) throws Exception {
+        JSONArray st = new JSONArray();
+        JSONObject o = new JSONObject().put("ip", ip).put("steps", st);
+        if (!IP.matcher(ip).matches()) { st.put(step(false, "IP غلط")); return o; }
+        int port = cfg.optInt("port", 22);
+        long t0 = System.currentTimeMillis();
+        try (Socket so = new Socket()) {
+            so.connect(new InetSocketAddress(ip, port), 4000);
+            st.put(step(true, "بورت " + port + " مفتوح (" + (System.currentTimeMillis() - t0) + " ms)"));
+            so.setSoTimeout(8000);
+            InputStream in = so.getInputStream();
+            ByteArrayOutputStream b = new ByteArrayOutputStream();
+            long t1 = System.currentTimeMillis();
+            try { int c; while (b.size() < 200 && (c = in.read()) >= 0 && c != '\n') b.write(c); } catch (Exception e) { }
+            String banner = b.toString("UTF-8").trim();
+            long bt = System.currentTimeMillis() - t1;
+            if (banner.startsWith("SSH-")) st.put(step(true, "رد بـ " + banner + " (" + bt + " ms)"));
+            else if (banner.isEmpty()) { st.put(step(false, "البورت مفتوح بس مارجّعش أي رد SSH خلال 8 ثواني. غالباً الجهاز مش أوبن ورت، أو الـ SSH بتاعه واقف.")); return o; }
+            else { st.put(step(false, "الجهاز رد بحاجة مش SSH: " + banner)); return o; }
+        } catch (Exception e) {
+            st.put(step(false, "بورت " + port + " مش بيرد (" + e.getMessage() + ")")); return o;
+        }
+        Res r = ssh(ip, "echo LOGIN_OK; cat /etc/openwrt_release 2>/dev/null | grep DISTRIB_DESCRIPTION; uname -m", null, 40000);
+        if (!r.ok) { st.put(step(false, r.err + " (" + (r.ms / 1000.0) + " ثانية)")); st.put(step(false, "التفاصيل: " + r.raw)); return o; }
+        st.put(step(true, "دخلت ونفذت أمر في " + (r.ms / 1000.0) + " ثانية"));
+        String info = r.out.replace("LOGIN_OK", "").trim().replace("\n", " — "); if (!info.isEmpty()) st.put(step(true, info));
+        Res sc = ssh(ip, SCAN_CMD, null, 40000);
+        if (sc.ok) st.put(step(true, "أمر الفحص خلص في " + (sc.ms / 1000.0) + " ثانية"));
+        else st.put(step(false, "أمر الفحص: " + sc.err + " (" + (sc.ms / 1000.0) + " ثانية)"));
+        return o;
+    }
+
+    static JSONObject step(boolean ok, String t) throws Exception { return new JSONObject().put("ok", ok).put("text", t); }
 
     // ---------------- kick ----------------
     private JSONArray kick(JSONArray items) throws Exception {
