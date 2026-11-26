@@ -202,9 +202,15 @@ html[data-mode=light][data-ui=app] .card{box-shadow:0 4px 18px rgba(0,0,0,.08)}
   <div class="card">
     <h3>دخول الأكسسات (SSH)</h3>
     <div class="row"><div><label>اسم المستخدم</label><input id="c_user"></div><div><label>بورت SSH</label><input id="c_port" type="number"></div></div>
-    <label>باسورد الأكسسات <span id="pwHint"></span></label><textarea id="c_pass" rows="3" autocapitalize="off" placeholder="باسورد في كل سطر — البرنامج يجرّبهم واحد ورا التاني + الفاضي" style="direction:ltr;text-align:left"></textarea>
-    <div style="font-size:12px;color:var(--mut);margin-top:4px">لو الأكسسات بباسوردات مختلفة، اكتب كل باسورد في سطر. البرنامج كمان بيجرّب الدخول من غير باسورد لوحده، فمش لازم تكتب حاجة لو الأكسسات من غير باسورد.</div>
-    <label class="mini" style="align-items:center"><input type="checkbox" id="c_clear" style="width:18px;height:18px;accent-color:var(--gold)"> الأكسسات من غير باسورد خالص</label>
+    <label class="chk" style="display:flex;gap:8px;align-items:center;font-size:15px;color:var(--txt);margin-top:6px"><input type="checkbox" id="c_multi" style="width:22px;height:22px;accent-color:var(--gold)" onchange="pwMulti(this.checked)"> 🔑 ابحث بأكتر من باسورد</label>
+    <div id="pwOff" style="font-size:13px;color:var(--mut);margin-top:6px">البرنامج بيبحث على الأكسسات بباسورد <b>فاضي</b> بس. شغّل الاختيار فوق لو عايز تضيف باسوردات.</div>
+    <div id="pwWrap" class="hide">
+      <div style="background:var(--in);border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px;color:var(--mut);font-size:13px">⚪ <b style="color:var(--txt)">فاضي</b> (من غير باسورد) — بيتجرّب دايماً لوحده</div>
+      <label style="margin-top:10px">الباسوردات <span id="pwHint" style="color:var(--mut);font-size:12px"></span></label>
+      <div id="pwList"></div>
+      <button class="btn ghost" style="margin-top:8px;padding:9px;font-size:14px" onclick="pwAdd('')">+ إضافة باسورد</button>
+      <div style="font-size:12px;color:var(--mut);margin-top:6px">البرنامج يجرّب كل باسورد لحد ما يدخل، وأول ما ينجح على أكسس بيفتكره.</div>
+    </div>
   </div>
   <div class="card">
     <h3>المايكروتك (عشان يظهر IP العميل)</h3>
@@ -641,6 +647,13 @@ function themeUI(){let t='gold',m='dark';try{t=localStorage.getItem('theme')||t;
   document.querySelectorAll('.thm[data-m]').forEach(e=>e.classList.toggle('on',e.dataset.m===m));
   const u=document.documentElement.dataset.ui||'classic';document.querySelectorAll('.thm[data-u]').forEach(e=>e.classList.toggle('on',e.dataset.u===u))}
 function setUi(u){try{localStorage.setItem('ui',u)}catch(e){}applyTheme();themeUI()}
+function pwMulti(on){$('pwWrap').classList.toggle('hide',!on);$('pwOff').classList.toggle('hide',on);
+  if(on&&!document.querySelectorAll('#pwList .pwRow').length)pwRows([''])}
+function pwRows(arr){const box=$('pwList');box.innerHTML='';(arr&&arr.length?arr:['']).forEach(v=>pwAdd(v))}
+function pwAdd(v){const box=$('pwList');const d=document.createElement('div');d.className='row';d.style.marginTop='6px';
+  d.innerHTML='<input class="pwRow" autocapitalize="off" autocomplete="off" style="direction:ltr;text-align:left" placeholder="باسورد الأكسس"><button class="btn ghost" style="flex:0 0 auto;width:52px;padding:0;color:var(--bad);border-color:var(--line)" onclick="pwDel(this)">✕</button>';
+  box.appendChild(d);d.querySelector('.pwRow').value=v||'';if(!v)setTimeout(()=>d.querySelector('.pwRow').focus(),30)}
+function pwDel(btn){const row=btn.closest('.row');row.parentNode.removeChild(row);if(!document.querySelectorAll('#pwList .pwRow').length)pwAdd('')}
 function setTheme(k){try{localStorage.setItem('theme',k)}catch(e){}applyTheme();themeUI()}
 function setMode(m){try{localStorage.setItem('mode',m)}catch(e){}applyTheme();themeUI()}
 function toggleAll(){const box=$('allBox');if(box.innerHTML){box.innerHTML='';return}
@@ -687,17 +700,19 @@ async function loadCfg(){
   const j=await api('config');CFG=j.config;
   $('c_user').value=CFG.user;$('c_port').value=CFG.port;$('c_ranges').value=CFG.ranges.join('\n');
   $('c_from').value=CFG.from;$('m_on').checked=!!CFG.mt_on;$('mBox').style.display=CFG.mt_on?'':'none';$('m_ip').value=CFG.mt_ip||'';$('m_port').value=CFG.mt_port||'';$('m_user').value=CFG.mt_user||'';$('mpwHint').textContent=j.has_mt_password?'(محفوظ — سيبه فاضي عشان يفضل زي ما هو)':'';$('m_clear').checked=false;$('c_to').value=CFG.to;if(!NATIVE){$('c_lport').value=CFG.listen_port;}
-  $('pwHint').textContent=j.pass_count?('(محفوظ '+j.pass_count+' باسورد — سيبه فاضي عشان يفضل زي ما هو)'):'';$('c_clear').checked=false;
+  const _pw=Array.isArray(CFG.passwords)?CFG.passwords:[];const _multi=!!CFG.multi;
+  $('c_multi').checked=_multi;pwMulti(_multi);pwRows(_pw.length?_pw:['']);
   if(!NATIVE)$('urls').innerHTML='<div style="color:var(--mut)">تفتحه من الموبايل وهو على نفس الشبكة:</div>'+(j.urls||[]).map(u=>`<div class="ltr" style="color:var(--gold2);margin-top:4px">${esc(u)}</div>`).join('');
   chips('scanChips');chips('instChips');
 }
 async function mtTest(){await saveCfg(true);$('mtRes').innerHTML='<div class="diag info"><span class="spin"></span> بجرب...</div>';
   const j=await api('mt_test');$('mtRes').innerHTML=j.error?`<div class="diag bad">${esc(j.error)}</div>`:`<div class="diag ok">✅ متصل بالمايكروتك ${esc(j.name||'')}</div>`}
 async function saveCfg(quiet){
-  const _pws=$('c_pass').value.split('\n').map(x=>x.trim()).filter(Boolean);
-  const j=await api('config',{config:{user:$('c_user').value,port:+$('c_port').value,passwords:_pws,clear_password:$('c_clear').checked,
+  const _multi=$('c_multi').checked;
+  const _pws=_multi?[...document.querySelectorAll('#pwList .pwRow')].map(x=>x.value.trim()).filter(Boolean):[];
+  const j=await api('config',{config:{user:$('c_user').value,port:+$('c_port').value,multi:_multi,passwords:_pws,
     ranges:$('c_ranges').value.split(/[\s,]+/).map(s=>s.replace(/\.x$|\.$/,'')).filter(Boolean),from:+$('c_from').value,to:+$('c_to').value,mt_on:$('m_on').checked,mt_ip:$('m_ip').value,mt_port:+$('m_port').value||0,mt_user:$('m_user').value,mt_pass:$('m_pass').value,mt_clear:$('m_clear').checked,listen_port:NATIVE?0:+$('c_lport').value}});
-  if(j.error)return toast(j.error);$('c_pass').value='';$('m_pass').value='';if(quiet!==true)toast('اتحفظ');loadCfg();
+  if(j.error)return toast(j.error);$('m_pass').value='';if(quiet!==true)toast('اتحفظ');loadCfg();
 }
 async function checkUpd(manual){if(manual)$('updSt').textContent='بدوّر على تحديث...';
   let v;try{v=await api('upd_check')}catch(e){return}

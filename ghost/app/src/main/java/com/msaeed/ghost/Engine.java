@@ -85,16 +85,19 @@ public class Engine {
     private final Map<String,String> ipPass = new ConcurrentHashMap<>();
     // قائمة الباسوردات اللي البرنامج يجربها (الرئيسي + الإضافيين)
     private List<String> passList() {
-        LinkedHashMap<String,Boolean> m = new LinkedHashMap<>();
-        String main = cfg.optString("password", "");
-        if (!main.isEmpty()) m.put(main, true);
-        JSONArray ex = cfg.optJSONArray("passwords");
-        if (ex != null) for (int i = 0; i < ex.length(); i++) {
-            String v = ex.optString(i, "");
-            if (!v.isEmpty()) m.put(v, true);
+        List<String> out = new ArrayList<>();
+        if (cfg.optBoolean("multi", false)) {
+            LinkedHashMap<String,Boolean> m = new LinkedHashMap<>();
+            String main = cfg.optString("password", "");
+            if (!main.isEmpty()) m.put(main, true);
+            JSONArray ex = cfg.optJSONArray("passwords");
+            if (ex != null) for (int i = 0; i < ex.length(); i++) {
+                String v = ex.optString(i, "");
+                if (!v.isEmpty()) m.put(v, true);
+            }
+            out.addAll(m.keySet());
         }
-        List<String> out = new ArrayList<>(m.keySet());
-        out.add("");   // دايماً يجرّب باسورد فاضي كمان (أكسس من غير باسورد)
+        out.add("");   // الفاضي بيتجرّب دايماً (وهو الوحيد لو البحث بأكتر من باسورد مقفول)
         return out;
     }
 
@@ -141,13 +144,14 @@ public class Engine {
             case "config": {
                 if (b.has("config")) saveConfig(b.getJSONObject("config"));
                 JSONObject c = new JSONObject(cfg.toString());
-                int pcount = c.optString("password").isEmpty() ? 0 : 1;
-                JSONArray exj = c.optJSONArray("passwords"); if (exj != null) pcount += exj.length();
-                boolean has = pcount > 0;
-                c.put("password", ""); c.remove("passwords"); c.remove("aps"); c.put("native", true);
+                JSONArray pls = new JSONArray();
+                String mainp = c.optString("password", ""); if (!mainp.isEmpty()) pls.put(mainp);
+                JSONArray exj = c.optJSONArray("passwords"); if (exj != null) for (int i = 0; i < exj.length(); i++) { String v = exj.optString(i, ""); if (!v.isEmpty()) pls.put(v); }
+                boolean has = pls.length() > 0;
+                c.put("password", ""); c.put("passwords", pls); c.remove("aps"); c.put("native", true);
                 boolean hasMt = !c.optString("mt_pass").isEmpty(); c.put("mt_pass", "");
                 JSONObject o = new JSONObject();
-                o.put("config", c); o.put("has_password", has); o.put("pass_count", pcount); o.put("has_mt_password", hasMt); o.put("ap_count", cfg.optJSONArray("aps").length()); o.put("urls", new JSONArray());
+                o.put("config", c); o.put("has_password", has); o.put("has_mt_password", hasMt); o.put("ap_count", cfg.optJSONArray("aps").length()); o.put("urls", new JSONArray());
                 return o.toString();
             }
         }
@@ -177,6 +181,7 @@ public class Engine {
             cfg.put("ranges", out);
         }
         if (n.has("user")) cfg.put("user", n.optString("user").trim());
+        if (n.has("multi")) { cfg.put("multi", n.optBoolean("multi")); ipPass.clear(); }
         if (n.has("passwords")) {
             JSONArray pin = n.optJSONArray("passwords");
             JSONArray pout = new JSONArray();
@@ -184,15 +189,10 @@ public class Engine {
                 String v = pin.optString(i, "").trim();
                 if (!v.isEmpty()) pout.put(v);
             }
-            if (pout.length() > 0) {
-                cfg.put("password", pout.getString(0));
-                JSONArray extra = new JSONArray();
-                for (int i = 1; i < pout.length(); i++) extra.put(pout.getString(i));
-                cfg.put("passwords", extra);
-                ipPass.clear();
-            }
-        } else if (!n.optString("password").isEmpty()) { cfg.put("password", n.optString("password")); ipPass.clear(); }
-        if (n.optBoolean("clear_password")) { cfg.put("password", ""); cfg.put("passwords", new JSONArray()); ipPass.clear(); }
+            cfg.put("passwords", pout);
+            cfg.put("password", pout.length() > 0 ? pout.getString(0) : "");
+            ipPass.clear();
+        }
         for (String k : new String[]{"from", "to", "port", "mt_port"}) if (n.optInt(k) > 0) cfg.put(k, n.optInt(k));
         if (n.has("mt_on")) cfg.put("mt_on", n.optBoolean("mt_on"));
         if (n.has("mt_ip")) cfg.put("mt_ip", n.optString("mt_ip").trim());
