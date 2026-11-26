@@ -287,11 +287,14 @@ setInterval(async()=>{if(!busyNow()&&!(await updGate(true)))return},30*60e3);
 async function rawApi(p,b){const r=await fetch('/api/'+p,{method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});return r.json().catch(()=>({error:'البرنامج مش بيرد'}))}
 // ---------- الدخول على Firebase زي برنامج الإخوة (منفصل في ghost/members) ----------
 const FBC={apiKey:"AIzaSyAS35dHxy4_dy45BWr586qqLbR72Q_cbP4",authDomain:"elekhwa-shop.firebaseapp.com",projectId:"elekhwa-shop",storageBucket:"elekhwa-shop.firebasestorage.app",messagingSenderId:"329491053695",appId:"1:329491053695:web:cdfb29a7c7164ddcd1534a"};
-const GDOM='@ghost.msaeed.app',OWNER_NAME='M saeed',MREF='ghost/members',GPRES='gpres';
+const GDOM='@ghost.msaeed.app',OWNER_NAME='M saeed',MREF='ghost/members',GPRES='gpres',SREF='ghost/secrets';
 const ukey=u=>String(u||'').trim().toLowerCase().replace(/\s+/g,'');
 const okUser=u=>/^[a-z0-9_.-]{3,20}$/.test(ukey(u));
 let fbA=null,fbAuth=null,fdb=null,MEM=null,CUR=null,memUnsub=null;
-let presTimer=null,presWired=false,usersTimer=null;
+let presTimer=null,presWired=false,usersTimer=null,SEC={};
+async function secSet(email,pw){try{await fdb.doc(SREF).set({pw:{[email]:pw}},{merge:true});SEC[email]=pw}catch(e){}}
+async function secDel(email){try{await fdb.doc(SREF).update({['pw.'+email]:firebase.firestore.FieldValue.delete()})}catch(e){}delete SEC[email]}
+async function secLoad(){try{const d=await fdb.doc(SREF).get();SEC=(d.exists&&(d.data()||{}).pw)||{}}catch(e){SEC={}}}
 function presBeat(){if(!CUR||!fdb)return;try{fdb.collection(GPRES).doc(CUR.email).set({t:Date.now(),name:nameOf(CUR.email)})}catch(e){}}
 function presStart(){presBeat();if(presTimer)clearInterval(presTimer);presTimer=setInterval(presBeat,45000);
   if(!presWired){presWired=true;document.addEventListener('visibilitychange',()=>{if(!document.hidden)presBeat()})}}
@@ -335,15 +338,15 @@ const LK={
   async add(n,pw){if(!isOwner())return 'المدير بس اللي يقدر يضيف عملاء';n=String(n||'').trim();
     if(!okUser(n))return 'اسم العميل إنجليزي أو أرقام من 3 لـ 20 حرف (من غير رموز)';
     if(Object.keys(MEM.names||{}).some(k=>ukey(k)===ukey(n)))return 'الاسم ده موجود بالفعل';
-    try{const email=await mkAccount(n,pw,false);await memEdit(x=>{x.users.push(email);x.names[n]=email});return ''}catch(e){return fbErr(e)}},
+    try{const email=await mkAccount(n,pw,false);await memEdit(x=>{x.users.push(email);x.names[n]=email});await secSet(email,pw);return ''}catch(e){return fbErr(e)}},
   async off(n,off){if(!isOwner())return 'المدير بس';const e=emailOf(n);if(e===MEM.owner)return 'مينفعش توقف حساب المدير';
     try{await memEdit(x=>{x.users=x.users.filter(y=>y!==e);x.suspended=x.suspended.filter(y=>y!==e);(off?x.suspended:x.users).push(e)});return ''}catch(err){return fbErr(err)}},
   async del(n){if(!isOwner())return 'المدير بس';const e=emailOf(n);if(e===MEM.owner)return 'مينفعش تمسح حساب المدير';
-    try{await memEdit(x=>{x.users=x.users.filter(y=>y!==e);x.suspended=x.suspended.filter(y=>y!==e);for(const k in x.names)if(x.names[k]===e)delete x.names[k]});return ''}catch(err){return fbErr(err)}},
+    try{await memEdit(x=>{x.users=x.users.filter(y=>y!==e);x.suspended=x.suspended.filter(y=>y!==e);for(const k in x.names)if(x.names[k]===e)delete x.names[k]});await secDel(e);return ''}catch(err){return fbErr(err)}},
   async pass(n,o,pw){try{const e=emailOf(n);
-      if(CUR&&e===CUR.email){await CUR.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(CUR.email,o));await CUR.updatePassword(pw);return ''}
+      if(CUR&&e===CUR.email){await CUR.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(CUR.email,o));await CUR.updatePassword(pw);await secSet(e,pw);return ''}
       if(!isOwner())return 'مينفعش تغيّر باسورد حد تاني';
-      const ne=await mkAccount(n,pw,true);await memEdit(x=>{const off=x.suspended.includes(e);x.users=x.users.filter(y=>y!==e);x.suspended=x.suspended.filter(y=>y!==e);(off?x.suspended:x.users).push(ne);for(const k in x.names)if(x.names[k]===e)x.names[k]=ne});return ''}
+      const ne=await mkAccount(n,pw,true);await memEdit(x=>{const off=x.suspended.includes(e);x.users=x.users.filter(y=>y!==e);x.suspended=x.suspended.filter(y=>y!==e);(off?x.suspended:x.users).push(ne);for(const k in x.names)if(x.names[k]===e)x.names[k]=ne});await secDel(e);await secSet(ne,pw);return ''}
     catch(err){return /wrong-password|invalid-credential|invalid-login/.test(err.code||'')?'الباسورد الحالي غلط':fbErr(err)}},
   async logout(){try{presStop();if(memUnsub)memUnsub();memUnsub=null;CUR=null;await fbAuth.signOut()}catch(e){}if(NATIVE){try{Android.lockLogout()}catch(e){}}else await rawApi('lock_logout',{})}};
 let LKMODE='locked';
@@ -366,6 +369,7 @@ async function lkGo(){const pw=$('lkPw').value,u=$('lkUser').value.trim();$('lkE
 async function usersRender(){const box=$('usersCard');if(!box)return;let me={};try{me=await LK.who()}catch(e){}
   const own=!!me.owner;let list=[];if(own)try{list=await LK.users()}catch(e){}
   let pres={};if(own&&fdb)try{const snap=await fdb.collection(GPRES).get();snap.forEach(d=>{pres[d.id]=(d.data()||{}).t||0})}catch(e){}
+  if(own)await secLoad();
   const onOf=e=>{const t=pres[e]||0;return (Date.now()-t)<120000&&t>0};
   if(own){if(usersTimer)clearTimeout(usersTimer);usersTimer=setTimeout(()=>{if(!$('t-set').classList.contains('hide'))usersRender()},30000)}
   box.innerHTML=`<h3>المستخدمين والحساب</h3><div style="font-size:14px;color:var(--mut)">انت داخل باسم <b class="ltr" style="color:var(--txt)">${esc(me.name||'')}</b>${own?' (المدير)':' (عميل)'}</div>`+
@@ -374,7 +378,7 @@ async function usersRender(){const box=$('usersCard');if(!box)return;let me={};t
      <div style="font-size:13px;margin-top:3px">${onOf(u.email)?'<span style="color:var(--ok)">🟢 أونلاين دلوقتي</span>':'<span style="color:var(--mut)">⚫ غير متصل'+(agoTxt(pres[u.email])?' — '+esc(agoTxt(pres[u.email])):'')+'</span>'}</div>
      ${u.owner?'':`<div class="row" style="margin-top:8px">${u.off?`<button class="btn" style="padding:7px;font-size:13px" onclick="uOff('${esc(u.name)}',false)">✅ تشغيل</button>`:`<button class="btn red" style="padding:7px;font-size:13px" onclick="uOff('${esc(u.name)}',true)">⛔ إيقاف</button>`}
        <button class="btn ghost" style="padding:7px;font-size:13px" onclick="uPassForm('${esc(u.name)}')">🔑 باسورد</button><button class="btn ghost" style="padding:7px;font-size:13px" onclick="uDel('${esc(u.name)}')">مسح</button></div>
-       <div id="up_${esc(u.name)}" class="hide" style="margin-top:8px"><label>الباسورد الجديد لـ <b class="ltr">${esc(u.name)}</b> (6 على الأقل)</label><input type="text" autocapitalize="off" autocomplete="off" style="direction:ltr;text-align:left" id="upi_${esc(u.name)}">
+       <div id="up_${esc(u.name)}" class="hide" style="margin-top:8px"><div style="background:var(--in);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;font-size:14px">الباسورد الحالي: ${SEC[u.email]?`<b class="ltr" style="color:var(--gold2)">${esc(SEC[u.email])}</b> <span class="ltr" onclick="copyTxt('${esc(SEC[u.email])}')" style="cursor:pointer;color:var(--gold)">📋</span>`:'<span style="color:var(--mut)">مش متسجل (هيتسجل أول ما تغيّره)</span>'}</div><label>الباسورد الجديد لـ <b class="ltr">${esc(u.name)}</b> (6 على الأقل)</label><input type="text" autocapitalize="off" autocomplete="off" style="direction:ltr;text-align:left" id="upi_${esc(u.name)}">
        <div style="height:6px"></div><button class="btn" style="padding:8px;font-size:14px" onclick="uPass('${esc(u.name)}',this)">حفظ الباسورد</button></div>`}</div>`).join('')+
      `<button class="btn big" style="margin-top:12px" onclick="uAddForm()">+ مستخدم جديد</button>
      <div id="uAdd" class="hide" style="margin-top:10px"><label>اسم العميل (إنجليزي أو أرقام، من غير مسافات)</label><input id="uN" autocapitalize="off" placeholder="ahmed" style="direction:ltr;text-align:left"><div style="font-size:12px;color:var(--mut)">الباسورد 6 حروف أو أرقام على الأقل</div><label>الباسورد بتاعه</label><input id="uP" type="password">
@@ -658,6 +662,7 @@ function pwRows(arr){const box=$('pwList');box.innerHTML='';(arr&&arr.length?arr
 function pwAdd(v){const box=$('pwList');const d=document.createElement('div');d.className='row';d.style.marginTop='6px';
   d.innerHTML='<input class="pwRow" autocapitalize="off" autocomplete="off" style="direction:ltr;text-align:left" placeholder="باسورد الأكسس"><button class="btn ghost" style="flex:0 0 auto;width:52px;padding:0;color:var(--bad);border-color:var(--line)" onclick="pwDel(this)">✕</button>';
   box.appendChild(d);d.querySelector('.pwRow').value=v||'';if(!v)setTimeout(()=>d.querySelector('.pwRow').focus(),30)}
+function copyTxt(t){try{navigator.clipboard.writeText(t);toast('اتنسخ')}catch(e){}}
 function pwDel(btn){const row=btn.closest('.row');row.parentNode.removeChild(row);if(!document.querySelectorAll('#pwList .pwRow').length)pwAdd('')}
 function setTheme(k){try{localStorage.setItem('theme',k)}catch(e){}applyTheme();themeUI()}
 function setMode(m){try{localStorage.setItem('mode',m)}catch(e){}applyTheme();themeUI()}
