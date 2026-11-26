@@ -129,6 +129,14 @@ html[data-mode=light][data-ui=app] .card{box-shadow:0 4px 18px rgba(0,0,0,.08)}
   <div id="lkErr" style="margin-top:8px"></div>
 </div></main></div>
 
+<div id="bioBox" class="hide"><main><div class="card" style="text-align:center">
+  <div style="font-size:60px;margin-top:10px">🔒</div>
+  <h3 style="font-size:19px">البرنامج مقفول</h3>
+  <div id="bioMsg" style="color:var(--mut);line-height:1.8;margin:6px 0">حط صباعك على البصمة عشان تفتح</div>
+  <button class="btn big" style="margin-top:8px" onclick="bioRequire()">🖐️ افتح بالبصمة</button>
+  <button class="btn ghost" style="width:100%;margin-top:8px" onclick="bioToPw()">دخول بالباسورد</button>
+</div></main></div>
+
 <div id="app" class="hide">
 <div id="updBar"><span id="updTxt">🎉 فيه إصدار جديد</span><button onclick="applyUpd()">تحديث دلوقتي</button></div>
 <nav><button data-t="scan" class="on">فحص المعلّقين</button><button data-t="inst">تركيب السكريبت</button><button data-t="set">الإعدادات</button></nav>
@@ -179,6 +187,11 @@ html[data-mode=light][data-ui=app] .card{box-shadow:0 4px 18px rgba(0,0,0,.08)}
     <div><span class="thm" data-m="dark" onclick="setMode('dark')">🌙 داكن</span><span class="thm" data-m="light" onclick="setMode('light')">☀️ فاتح</span></div>
     <div style="font-size:13px;color:var(--mut);margin:10px 0 6px">شكل الواجهة</div>
     <div><span class="thm" data-u="classic" onclick="setUi('classic')">🧱 كلاسيك</span><span class="thm" data-u="glass" onclick="setUi('glass')">💎 زجاجي</span><span class="thm" data-u="flat" onclick="setUi('flat')">📄 بسيط</span><span class="thm" data-u="app" onclick="setUi('app')">📱 تطبيق (التابات تحت)</span></div>
+    <div id="bioRow" class="hide" style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px">
+      <div style="font-size:13px;color:var(--mut);margin-bottom:6px">الأمان</div>
+      <label class="chk" style="display:flex;gap:8px;align-items:center;font-size:15px;color:var(--txt)"><input type="checkbox" id="bioChk" style="width:22px;height:22px;accent-color:var(--gold)" onchange="bioToggle(this.checked)"> 🖐️ اقفل البرنامج بالبصمة</label>
+      <div id="bioNote" style="font-size:12px;color:var(--mut);margin-top:4px"></div>
+    </div>
   </div>
   <div class="card">
     <h3>التحديث</h3>
@@ -189,8 +202,9 @@ html[data-mode=light][data-ui=app] .card{box-shadow:0 4px 18px rgba(0,0,0,.08)}
   <div class="card">
     <h3>دخول الأكسسات (SSH)</h3>
     <div class="row"><div><label>اسم المستخدم</label><input id="c_user"></div><div><label>بورت SSH</label><input id="c_port" type="number"></div></div>
-    <label>الباسورد <span id="pwHint"></span></label><input id="c_pass" type="password">
-    <label class="mini" style="align-items:center"><input type="checkbox" id="c_clear" style="width:18px;height:18px;accent-color:var(--gold)"> الأكسسات من غير باسورد</label>
+    <label>باسورد الأكسسات <span id="pwHint"></span></label><textarea id="c_pass" rows="3" autocapitalize="off" placeholder="باسورد في كل سطر — البرنامج يجرّبهم واحد ورا التاني + الفاضي" style="direction:ltr;text-align:left"></textarea>
+    <div style="font-size:12px;color:var(--mut);margin-top:4px">لو الأكسسات بباسوردات مختلفة، اكتب كل باسورد في سطر. البرنامج كمان بيجرّب الدخول من غير باسورد لوحده، فمش لازم تكتب حاجة لو الأكسسات من غير باسورد.</div>
+    <label class="mini" style="align-items:center"><input type="checkbox" id="c_clear" style="width:18px;height:18px;accent-color:var(--gold)"> الأكسسات من غير باسورد خالص</label>
   </div>
   <div class="card">
     <h3>المايكروتك (عشان يظهر IP العميل)</h3>
@@ -262,10 +276,18 @@ setInterval(async()=>{if(!busyNow()&&!(await updGate()))return},30*60e3);
 async function rawApi(p,b){const r=await fetch('/api/'+p,{method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});return r.json().catch(()=>({error:'البرنامج مش بيرد'}))}
 // ---------- الدخول على Firebase زي برنامج الإخوة (منفصل في ghost/members) ----------
 const FBC={apiKey:"AIzaSyAS35dHxy4_dy45BWr586qqLbR72Q_cbP4",authDomain:"elekhwa-shop.firebaseapp.com",projectId:"elekhwa-shop",storageBucket:"elekhwa-shop.firebasestorage.app",messagingSenderId:"329491053695",appId:"1:329491053695:web:cdfb29a7c7164ddcd1534a"};
-const GDOM='@ghost.msaeed.app',OWNER_NAME='M saeed',MREF='ghost/members';
+const GDOM='@ghost.msaeed.app',OWNER_NAME='M saeed',MREF='ghost/members',GPRES='gpres';
 const ukey=u=>String(u||'').trim().toLowerCase().replace(/\s+/g,'');
 const okUser=u=>/^[a-z0-9_.-]{3,20}$/.test(ukey(u));
 let fbA=null,fbAuth=null,fdb=null,MEM=null,CUR=null,memUnsub=null;
+let presTimer=null,presWired=false,usersTimer=null;
+function presBeat(){if(!CUR||!fdb)return;try{fdb.collection(GPRES).doc(CUR.email).set({t:Date.now(),name:nameOf(CUR.email)})}catch(e){}}
+function presStart(){presBeat();if(presTimer)clearInterval(presTimer);presTimer=setInterval(presBeat,45000);
+  if(!presWired){presWired=true;document.addEventListener('visibilitychange',()=>{if(!document.hidden)presBeat()})}}
+function presStop(){if(presTimer)clearInterval(presTimer);presTimer=null;
+  if(CUR&&fdb){try{fdb.collection(GPRES).doc(CUR.email).set({t:0,name:nameOf(CUR.email)})}catch(e){}}}
+function agoTxt(ms){if(!ms)return 'لسه ما دخلش';const d=Date.now()-ms;if(d<120000)return '';const m=Math.floor(d/60000);
+  if(m<60)return 'آخر ظهور من '+m+' دقيقة';const h=Math.floor(m/60);if(h<24)return 'آخر ظهور من '+h+' ساعة';return 'آخر ظهور من '+Math.floor(h/24)+' يوم'}
 function fbInit(){if(fbA)return true;if(!window.firebase)return false;try{fbA=firebase.initializeApp(FBC,'ghost');fbAuth=fbA.auth();fdb=fbA.firestore();fdb.enablePersistence().catch(()=>{})}catch(e){return false}return true}
 const waitUser=()=>new Promise(r=>{const un=fbAuth.onAuthStateChanged(u=>{un();r(u)})});
 async function memGet(){try{const d=await fdb.doc(MREF).get();return d.exists?d.data():null}catch(e){try{const d=await fdb.doc(MREF).get({source:'cache'});return d.exists?d.data():undefined}catch(x){return undefined}}}
@@ -275,7 +297,7 @@ function fbErr(e){const c=(e&&e.code)||'';if(/wrong-password|user-not-found|inva
   if(/too-many-requests/.test(c))return 'محاولات كتير غلط، استنى شوية وجرّب تاني';if(/network/.test(c))return 'مفيش نت. أول دخول لازم الموبايل يكون متوصل بالنت';
   if(/weak-password/.test(c))return 'الباسورد لازم يبقى 6 حروف أو أرقام على الأقل';if(/email-already-in-use/.test(c))return 'الاسم ده مستخدم قبل كده';if(/permission/.test(c))return 'مفيش صلاحية (اتأكد إن قواعد Firebase اتحدّثت)';return (e&&e.message)||'حصلت مشكلة'}
 async function openEngine(){if(NATIVE){try{Android.lockSet(true)}catch(e){}}else await rawApi('fb_open',{})}
-function memWatch(){if(memUnsub)memUnsub();memUnsub=fdb.doc(MREF).onSnapshot(d=>{if(!d.exists||!CUR)return;MEM=d.data();
+function memWatch(){presStart();if(memUnsub)memUnsub();memUnsub=fdb.doc(MREF).onSnapshot(d=>{if(!d.exists||!CUR)return;MEM=d.data();
   if(!(MEM.users||[]).includes(CUR.email)){const off=(MEM.suspended||[]).includes(CUR.email);LK.logout().then(()=>showLock(off?'off':'locked'))}
   else if(!$('t-set').classList.contains('hide'))usersRender()},()=>{})}
 async function memEdit(fn){const ref=fdb.doc(MREF);const m=(await ref.get({source:'server'})).data();const n={users:[...(m.users||[])],suspended:[...(m.suspended||[])],names:{...(m.names||{})}};fn(n);await ref.update(n);MEM={...m,...n}}
@@ -298,7 +320,7 @@ const LK={
       CUR=c.user;await openEngine();memWatch();return ''}catch(e){return fbErr(e)}},
   async who(){return {name:CUR?nameOf(CUR.email):'',owner:isOwner()}},
   async users(){if(!isOwner())return [];const m=MEM||{};const all=[...(m.users||[]).map(e=>[e,0]),...(m.suspended||[]).map(e=>[e,1])];
-    return all.map(([e,off])=>({name:nameOf(e),owner:e===m.owner,off:!!off})).sort((a,b)=>b.owner-a.owner)},
+    return all.map(([e,off])=>({name:nameOf(e),email:e,owner:e===m.owner,off:!!off})).sort((a,b)=>b.owner-a.owner)},
   async add(n,pw){if(!isOwner())return 'المدير بس اللي يقدر يضيف عملاء';n=String(n||'').trim();
     if(!okUser(n))return 'اسم العميل إنجليزي أو أرقام من 3 لـ 20 حرف (من غير رموز)';
     if(Object.keys(MEM.names||{}).some(k=>ukey(k)===ukey(n)))return 'الاسم ده موجود بالفعل';
@@ -312,7 +334,7 @@ const LK={
       if(!isOwner())return 'مينفعش تغيّر باسورد حد تاني';
       const ne=await mkAccount(n,pw,true);await memEdit(x=>{const off=x.suspended.includes(e);x.users=x.users.filter(y=>y!==e);x.suspended=x.suspended.filter(y=>y!==e);(off?x.suspended:x.users).push(ne);for(const k in x.names)if(x.names[k]===e)x.names[k]=ne});return ''}
     catch(err){return /wrong-password|invalid-credential|invalid-login/.test(err.code||'')?'الباسورد الحالي غلط':fbErr(err)}},
-  async logout(){try{if(memUnsub)memUnsub();memUnsub=null;CUR=null;await fbAuth.signOut()}catch(e){}if(NATIVE){try{Android.lockLogout()}catch(e){}}else await rawApi('lock_logout',{})}};
+  async logout(){try{presStop();if(memUnsub)memUnsub();memUnsub=null;CUR=null;await fbAuth.signOut()}catch(e){}if(NATIVE){try{Android.lockLogout()}catch(e){}}else await rawApi('lock_logout',{})}};
 let LKMODE='locked';
 function showLock(st){LKMODE=st==='setup'?'setup':'locked';$('app').classList.add('hide');$('lockBox').classList.remove('hide');$('lkErr').innerHTML='';$('lkPw').value='';$('lkPw2').value='';
   const setup=st==='setup';$('lkTitle').textContent=setup?'أول تشغيل للبرنامج':'تسجيل الدخول';
@@ -332,9 +354,13 @@ async function lkGo(){const pw=$('lkPw').value,u=$('lkUser').value.trim();$('lkE
 // ---------- صفحة المستخدمين والحساب ----------
 async function usersRender(){const box=$('usersCard');if(!box)return;let me={};try{me=await LK.who()}catch(e){}
   const own=!!me.owner;let list=[];if(own)try{list=await LK.users()}catch(e){}
+  let pres={};if(own&&fdb)try{const snap=await fdb.collection(GPRES).get();snap.forEach(d=>{pres[d.id]=(d.data()||{}).t||0})}catch(e){}
+  const onOf=e=>{const t=pres[e]||0;return (Date.now()-t)<120000&&t>0};
+  if(own){if(usersTimer)clearTimeout(usersTimer);usersTimer=setTimeout(()=>{if(!$('t-set').classList.contains('hide'))usersRender()},30000)}
   box.innerHTML=`<h3>المستخدمين والحساب</h3><div style="font-size:14px;color:var(--mut)">انت داخل باسم <b class="ltr" style="color:var(--txt)">${esc(me.name||'')}</b>${own?' (المدير)':' (عميل)'}</div>`+
    (own?`<div style="border-top:1px solid var(--line);margin:10px 0"></div>`+list.map(u=>`<div class="gh" style="display:block;border-right-color:${u.off?'var(--bad)':'var(--ok)'}">
      <div style="font-size:16px">👤 <b class="ltr">${esc(u.name)}</b> <span class="tag" style="direction:rtl">${u.owner?'المدير':'عميل'}</span>${u.off?' <span style="color:var(--bad)">⛔ موقوف</span>':''}</div>
+     <div style="font-size:13px;margin-top:3px">${onOf(u.email)?'<span style="color:var(--ok)">🟢 أونلاين دلوقتي</span>':'<span style="color:var(--mut)">⚫ غير متصل'+(agoTxt(pres[u.email])?' — '+esc(agoTxt(pres[u.email])):'')+'</span>'}</div>
      ${u.owner?'':`<div class="row" style="margin-top:8px">${u.off?`<button class="btn" style="padding:7px;font-size:13px" onclick="uOff('${esc(u.name)}',false)">✅ تشغيل</button>`:`<button class="btn red" style="padding:7px;font-size:13px" onclick="uOff('${esc(u.name)}',true)">⛔ إيقاف</button>`}
        <button class="btn ghost" style="padding:7px;font-size:13px" onclick="uPassForm('${esc(u.name)}')">🔑 باسورد</button><button class="btn ghost" style="padding:7px;font-size:13px" onclick="uDel('${esc(u.name)}')">مسح</button></div>
        <div id="up_${esc(u.name)}" class="hide" style="margin-top:8px"><label>الباسورد الجديد لـ <b class="ltr">${esc(u.name)}</b> (6 على الأقل)</label><input type="text" autocapitalize="off" autocomplete="off" style="direction:ltr;text-align:left" id="upi_${esc(u.name)}">
@@ -661,14 +687,15 @@ async function loadCfg(){
   const j=await api('config');CFG=j.config;
   $('c_user').value=CFG.user;$('c_port').value=CFG.port;$('c_ranges').value=CFG.ranges.join('\n');
   $('c_from').value=CFG.from;$('m_on').checked=!!CFG.mt_on;$('mBox').style.display=CFG.mt_on?'':'none';$('m_ip').value=CFG.mt_ip||'';$('m_port').value=CFG.mt_port||'';$('m_user').value=CFG.mt_user||'';$('mpwHint').textContent=j.has_mt_password?'(محفوظ — سيبه فاضي عشان يفضل زي ما هو)':'';$('m_clear').checked=false;$('c_to').value=CFG.to;if(!NATIVE){$('c_lport').value=CFG.listen_port;}
-  $('pwHint').textContent=j.has_password?'(محفوظ — سيبه فاضي عشان يفضل زي ما هو)':'';$('c_clear').checked=false;
+  $('pwHint').textContent=j.pass_count?('(محفوظ '+j.pass_count+' باسورد — سيبه فاضي عشان يفضل زي ما هو)'):'';$('c_clear').checked=false;
   if(!NATIVE)$('urls').innerHTML='<div style="color:var(--mut)">تفتحه من الموبايل وهو على نفس الشبكة:</div>'+(j.urls||[]).map(u=>`<div class="ltr" style="color:var(--gold2);margin-top:4px">${esc(u)}</div>`).join('');
   chips('scanChips');chips('instChips');
 }
 async function mtTest(){await saveCfg(true);$('mtRes').innerHTML='<div class="diag info"><span class="spin"></span> بجرب...</div>';
   const j=await api('mt_test');$('mtRes').innerHTML=j.error?`<div class="diag bad">${esc(j.error)}</div>`:`<div class="diag ok">✅ متصل بالمايكروتك ${esc(j.name||'')}</div>`}
 async function saveCfg(quiet){
-  const j=await api('config',{config:{user:$('c_user').value,port:+$('c_port').value,password:$('c_pass').value,clear_password:$('c_clear').checked,
+  const _pws=$('c_pass').value.split('\n').map(x=>x.trim()).filter(Boolean);
+  const j=await api('config',{config:{user:$('c_user').value,port:+$('c_port').value,passwords:_pws,clear_password:$('c_clear').checked,
     ranges:$('c_ranges').value.split(/[\s,]+/).map(s=>s.replace(/\.x$|\.$/,'')).filter(Boolean),from:+$('c_from').value,to:+$('c_to').value,mt_on:$('m_on').checked,mt_ip:$('m_ip').value,mt_port:+$('m_port').value||0,mt_user:$('m_user').value,mt_pass:$('m_pass').value,mt_clear:$('m_clear').checked,listen_port:NATIVE?0:+$('c_lport').value}});
   if(j.error)return toast(j.error);$('c_pass').value='';$('m_pass').value='';if(quiet!==true)toast('اتحفظ');loadCfg();
 }
@@ -712,10 +739,31 @@ async function doRefresh(){
       PI.textContent=pd>100?'↻ سيب عشان يتحدّث':'⬇️ اسحب لتحت للتحديث'}},{passive:true});
   addEventListener('touchend',()=>{const go=py!==null&&pd>100;py=null;pd=0;PI.style.transform='translateY(-60px)';PI.style.opacity=0;if(go)doRefresh()});
 })();
+// ---------- القفل بالبصمة ----------
+let BIO_DONE=false;
+function bioEnabled(){try{return NATIVE&&localStorage.getItem('bio')==='1'}catch(e){return false}}
+function bioCall(){return new Promise(r=>{try{const id='b'+Date.now()+Math.random();_cbs[id]=r;Android.bioAuth(id)}catch(e){r('err:'+e)}})}
+async function bioRequire(){$('bioMsg').textContent='حط صباعك على البصمة...';const r=await bioCall();
+  if(r==='ok'){BIO_DONE=true;$('bioBox').classList.add('hide');$('app').classList.remove('hide')}
+  else if(r==='pw'){bioToPw()}
+  else{$('bioMsg').innerHTML='<span style="color:var(--bad)">'+esc((r||'').replace(/^err:/,'')||'مقدرش يقرا البصمة')+'</span><br>جرّب تاني';}}
+function bioToPw(){BIO_DONE=false;$('bioBox').classList.add('hide');LK.logout().then(()=>showLock('locked'))}
+function bioShow(){$('app').classList.add('hide');$('lockBox').classList.add('hide');$('updGate').classList.add('hide');$('bioBox').classList.remove('hide');bioRequire()}
+window.bioRelock=function(){if(bioEnabled()&&BIO_DONE&&$('bioBox').classList.contains('hide')&&!$('app').classList.contains('hide')){BIO_DONE=false;bioShow()}};
+async function bioInitUI(){if(!NATIVE)return;let st='old';try{st=Android.bioState()}catch(e){}
+  const row=$('bioRow'),note=$('bioNote');if(st==='nohw'||st==='old'){row.classList.add('hide');return}
+  row.classList.remove('hide');$('bioChk').checked=bioEnabled();
+  note.textContent=st==='none'?'⚠️ مفيش بصمة متسجلة على الموبايل. سجّل بصمة من إعدادات الموبايل الأول.':''}
+async function bioToggle(on){if(on){let st='old';try{st=Android.bioState()}catch(e){}
+    if(st==='none'){$('bioChk').checked=false;return toast('سجّل بصمة من إعدادات الموبايل الأول')}
+    const r=await bioCall();if(r!=='ok'){$('bioChk').checked=false;return toast('البصمة اتلغت')}
+    try{localStorage.setItem('bio','1')}catch(e){}BIO_DONE=true;toast('✅ البرنامج هيتقفل بالبصمة')}
+  else{try{localStorage.setItem('bio','0')}catch(e){}toast('اتلغى قفل البصمة')}}
 async function init(){
   if(!(await updGate()))return;
   let st='open';try{st=await LK.state()}catch(e){}
   if(st!=='open'){showLock(st);return}
+  if(bioEnabled()&&!BIO_DONE){try{await loadCfg()}catch(e){}usersRender();themeUI();bioInitUI();bioShow();return}
   if(NATIVE){document.querySelectorAll('.pcOnly').forEach(e=>e.remove());try{$('curVer').textContent=Android.appVersion()}catch(e){}showJustUpdated();setTimeout(()=>{try{const p=Android.takeBgScan&&Android.takeBgScan();if(p)window.__bgScan(p)}catch(e){}},800)}
   else{try{const v=await api('version');$('curVer').textContent=v.name}catch(e){}}
   $('verTxt').textContent='إصدار '+$('curVer').textContent+' —';

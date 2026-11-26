@@ -23,7 +23,15 @@ const UPD = 'https://github.com/sm0902556-sketch/msaeed-shop/releases/download/g
 const https = require('https');
 const { spawn } = require('child_process');
 const DEF_RANGES = [15, 16, 17, 18, 20, 30, 35, 40, 50, 60, 70, 80, 90, 100].map(n => '192.168.' + n);
-let cfg = { ranges: DEF_RANGES, from: 2, to: 254, user: 'root', password: '', port: 22, pin: '', listen_port: 8091, aps: [] };
+let cfg = { ranges: DEF_RANGES, from: 2, to: 254, user: 'root', password: '', passwords: [], port: 22, pin: '', listen_port: 8091, aps: [] };
+const ipPass = {}; // الباسورد اللي نجح لكل أكسس
+function passList() {
+  const out = [];
+  if (cfg.password) out.push(cfg.password);
+  for (const v of (cfg.passwords || [])) if (v && !out.includes(v)) out.push(v);
+  out.push(''); // دايماً جرّب باسورد فاضي كمان
+  return out;
+}
 try { Object.assign(cfg, JSON.parse(fs.readFileSync(cfgPath, 'utf8'))); } catch (e) {}
 const save = () => { try { fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2)); } catch (e) {} };
 
@@ -59,7 +67,22 @@ function arErr(e) {
   return m;
 }
 
-function sshRun(ip, cmd, stdin, timeout = 12000) {
+async function sshRun(ip, cmd, stdin, timeout = 12000) {
+  let pl = passList();
+  const good = ipPass[ip];
+  if (good !== undefined) { pl = [good, ...pl.filter(p => p !== good)]; }
+  let r;
+  for (const pw of pl) {
+    r = await sshOne(ip, cmd, stdin, timeout, pw);
+    if (r.ok) { ipPass[ip] = pw; return r; }
+    const raw = String(r.raw || '');
+    const authFail = /Auth|USERAUTH|All configured authentication/i.test(raw);
+    if (!authFail) return r; // مشكلة مش في الباسورد (الأكسس مش بيرد)
+  }
+  return { ip, ok: false, out: '', err: 'اسم المستخدم أو الباسورد غلط (جربت ' + pl.length + ' باسورد)', raw: 'Auth fail', ms: 0 };
+}
+
+function sshOne(ip, cmd, stdin, timeout, pass) {
   return new Promise(res => {
     const c = new Client(); let out = '', err = '', done = false;
     const t0 = Date.now(); const fin = e => { if (done) return; done = true; clearTimeout(t); try { c.end(); } catch (x) {} res({ ip, ok: !e, out, err: e ? arErr(e) : err, raw: e ? String(e.message || e) : '', ms: Date.now() - t0 }); };
@@ -71,10 +94,10 @@ function sshRun(ip, cmd, stdin, timeout = 12000) {
       if (stdin) s.end(stdin); else s.end();
     }));
     c.on('error', e => fin(e));
-    c.on('keyboard-interactive', (n, i, l, prompts, f) => f(prompts.map(() => cfg.password || '')));
+    c.on('keyboard-interactive', (n, i, l, prompts, f) => f(prompts.map(() => pass || '')));
     try {
       c.connect({
-        host: ip, port: +cfg.port || 22, username: cfg.user || 'root', password: cfg.password || undefined,
+        host: ip, port: +cfg.port || 22, username: cfg.user || 'root', password: pass || undefined,
         tryKeyboard: true, readyTimeout: timeout,
         algorithms: { kex: { append: ['diffie-hellman-group14-sha1', 'diffie-hellman-group1-sha1'] } }
       });
@@ -505,12 +528,15 @@ const server = http.createServer(async (req, res) => {
         if (typeof n.mt_pass === 'string' && n.mt_pass !== '') cfg.mt_pass = n.mt_pass;
         if (n.mt_clear) cfg.mt_pass = '';
         if (typeof n.mt_on === 'boolean') cfg.mt_on = n.mt_on;
-        if (typeof n.password === 'string' && n.password !== '') cfg.password = n.password;
-        if (n.clear_password) cfg.password = '';
+        if (Array.isArray(n.passwords)) {
+          const pw = n.passwords.map(x => String(x).trim()).filter(Boolean);
+          if (pw.length) { cfg.password = pw[0]; cfg.passwords = pw.slice(1); for (const k in ipPass) delete ipPass[k]; }
+        } else if (typeof n.password === 'string' && n.password !== '') { cfg.password = n.password; for (const k in ipPass) delete ipPass[k]; }
+        if (n.clear_password) { cfg.password = ''; cfg.passwords = []; for (const k in ipPass) delete ipPass[k]; }
         for (const k of ['from', 'to', 'port', 'listen_port', 'mt_port']) if (+n[k]) cfg[k] = +n[k];
         save();
       }
-      return send(res, { config: { ...cfg, password: '', mt_pass: '', aps: undefined, lock: undefined, pin: undefined, users: undefined, device_id: undefined, lic: undefined }, has_password: !!cfg.password, has_mt_password: !!cfg.mt_pass, ap_count: cfg.aps.length, urls: lanUrls() });
+      return send(res, { config: { ...cfg, password: '', passwords: undefined, mt_pass: '', aps: undefined, lock: undefined, pin: undefined, users: undefined, device_id: undefined, lic: undefined }, has_password: !!cfg.password, pass_count: passList().filter(Boolean).length, has_mt_password: !!cfg.mt_pass, ap_count: cfg.aps.length, urls: lanUrls() });
     case '/api/mt_test': try { const r = await mtOpen(); const id = await r.run('/system/identity/print'); r.close(); return send(res, { ok: true, name: (id[0] || {}).name }); } catch (e) { return send(res, { error: e.message }); }
     case '/api/ap_action': {
       const ip = String(b.ip || ''), act = b.action;

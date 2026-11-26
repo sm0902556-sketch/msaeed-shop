@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -80,6 +81,23 @@ public class Engine {
 
     private synchronized void save() { prefs.edit().putString("json", cfg.toString()).apply(); }
 
+    // الباسورد اللي نجح لكل أكسس، عشان مانجربش كل الباسوردات كل مرة
+    private final Map<String,String> ipPass = new ConcurrentHashMap<>();
+    // قائمة الباسوردات اللي البرنامج يجربها (الرئيسي + الإضافيين)
+    private List<String> passList() {
+        LinkedHashMap<String,Boolean> m = new LinkedHashMap<>();
+        String main = cfg.optString("password", "");
+        if (!main.isEmpty()) m.put(main, true);
+        JSONArray ex = cfg.optJSONArray("passwords");
+        if (ex != null) for (int i = 0; i < ex.length(); i++) {
+            String v = ex.optString(i, "");
+            if (!v.isEmpty()) m.put(v, true);
+        }
+        List<String> out = new ArrayList<>(m.keySet());
+        out.add("");   // دايماً يجرّب باسورد فاضي كمان (أكسس من غير باسورد)
+        return out;
+    }
+
     static String err(String m) {
         try { return new JSONObject().put("error", m).toString(); } catch (Exception e) { return "{\"error\":\"error\"}"; }
     }
@@ -123,11 +141,13 @@ public class Engine {
             case "config": {
                 if (b.has("config")) saveConfig(b.getJSONObject("config"));
                 JSONObject c = new JSONObject(cfg.toString());
-                boolean has = !c.optString("password").isEmpty();
-                c.put("password", ""); c.remove("aps"); c.put("native", true);
+                int pcount = c.optString("password").isEmpty() ? 0 : 1;
+                JSONArray exj = c.optJSONArray("passwords"); if (exj != null) pcount += exj.length();
+                boolean has = pcount > 0;
+                c.put("password", ""); c.remove("passwords"); c.remove("aps"); c.put("native", true);
                 boolean hasMt = !c.optString("mt_pass").isEmpty(); c.put("mt_pass", "");
                 JSONObject o = new JSONObject();
-                o.put("config", c); o.put("has_password", has); o.put("has_mt_password", hasMt); o.put("ap_count", cfg.optJSONArray("aps").length()); o.put("urls", new JSONArray());
+                o.put("config", c); o.put("has_password", has); o.put("pass_count", pcount); o.put("has_mt_password", hasMt); o.put("ap_count", cfg.optJSONArray("aps").length()); o.put("urls", new JSONArray());
                 return o.toString();
             }
         }
@@ -157,8 +177,22 @@ public class Engine {
             cfg.put("ranges", out);
         }
         if (n.has("user")) cfg.put("user", n.optString("user").trim());
-        if (!n.optString("password").isEmpty()) cfg.put("password", n.optString("password"));
-        if (n.optBoolean("clear_password")) cfg.put("password", "");
+        if (n.has("passwords")) {
+            JSONArray pin = n.optJSONArray("passwords");
+            JSONArray pout = new JSONArray();
+            if (pin != null) for (int i = 0; i < pin.length(); i++) {
+                String v = pin.optString(i, "").trim();
+                if (!v.isEmpty()) pout.put(v);
+            }
+            if (pout.length() > 0) {
+                cfg.put("password", pout.getString(0));
+                JSONArray extra = new JSONArray();
+                for (int i = 1; i < pout.length(); i++) extra.put(pout.getString(i));
+                cfg.put("passwords", extra);
+                ipPass.clear();
+            }
+        } else if (!n.optString("password").isEmpty()) { cfg.put("password", n.optString("password")); ipPass.clear(); }
+        if (n.optBoolean("clear_password")) { cfg.put("password", ""); cfg.put("passwords", new JSONArray()); ipPass.clear(); }
         for (String k : new String[]{"from", "to", "port", "mt_port"}) if (n.optInt(k) > 0) cfg.put(k, n.optInt(k));
         if (n.has("mt_on")) cfg.put("mt_on", n.optBoolean("mt_on"));
         if (n.has("mt_ip")) cfg.put("mt_ip", n.optString("mt_ip").trim());
@@ -220,8 +254,26 @@ public class Engine {
     }
 
     private Res sshInner(Res r, String ip, String cmd, String stdin, int timeout) {
+        // رتّب الباسوردات: اللي نجح قبل كده على الأكسس ده الأول
+        List<String> pl = passList();
+        String good = ipPass.get(ip);
+        if (good != null) { pl.remove(good); pl.add(0, good); }
+        Throwable last = null;
+        for (int pi = 0; pi < pl.size(); pi++) {
+            Res rr = sshOne(r, ip, cmd, stdin, timeout, pl.get(pi));
+            if (rr.ok) { ipPass.put(ip, pl.get(pi)); return rr; }
+            // غلط في الباسورد بس؟ جرّب اللي بعده. أي مشكلة تانية (الأكسس مش بيرد) وقّف
+            String raw = String.valueOf(rr.raw);
+            boolean authFail = raw.contains("Auth fail") || raw.contains("Auth cancel") || raw.contains("USERAUTH");
+            if (!authFail) return rr;
+            last = null;
+        }
+        r.ok = false; r.err = "اسم المستخدم أو الباسورد غلط (جربت " + pl.size() + " باسورد)"; r.raw = "Auth fail";
+        return r;
+    }
+
+    private Res sshOne(Res r, String ip, String cmd, String stdin, int timeout, String pass) {
         Session s = null; ChannelExec ch = null;
-        final String pass = cfg.optString("password", "");
         try {
             JSch j = new JSch();
             s = j.getSession(cfg.optString("user", "root"), ip, cfg.optInt("port", 22));

@@ -12,7 +12,9 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.CancellationSignal;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -35,7 +37,7 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     // زوّد الرقم ده (وفي ghost/engine-version.txt) لما تغيّر في كود الجافا
-    static final int ENGINE = 17;
+    static final int ENGINE = 18;
     static final String UPD = "https://github.com/sm0902556-sketch/msaeed-shop/releases/download/ghost-latest/";
 
     private WebView web;
@@ -184,6 +186,42 @@ public class MainActivity extends Activity {
         }
 
         // ---------- الدخول (Firebase في الواجهة) ----------
+        // ===== البصمة =====
+        @JavascriptInterface
+        public String bioState() {
+            try {
+                if (Build.VERSION.SDK_INT >= 29) {
+                    android.hardware.biometrics.BiometricManager bm = getSystemService(android.hardware.biometrics.BiometricManager.class);
+                    int c = bm.canAuthenticate();
+                    if (c == android.hardware.biometrics.BiometricManager.BIOMETRIC_SUCCESS) return "ok";
+                    if (c == android.hardware.biometrics.BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED) return "none";
+                    return "nohw";
+                }
+                if (Build.VERSION.SDK_INT >= 28) {
+                    android.hardware.fingerprint.FingerprintManager fm = getSystemService(android.hardware.fingerprint.FingerprintManager.class);
+                    if (fm == null || !fm.isHardwareDetected()) return "nohw";
+                    return fm.hasEnrolledFingerprints() ? "ok" : "none";
+                }
+            } catch (Throwable t) { }
+            return "old";
+        }
+        @JavascriptInterface
+        public void bioAuth(final String id) {
+            runOnUiThread(() -> {
+                if (Build.VERSION.SDK_INT < 28) { bioCb(id, "err:الموبايل ده مش بيدعم البصمة"); return; }
+                try {
+                    android.hardware.biometrics.BiometricPrompt bp = new android.hardware.biometrics.BiometricPrompt.Builder(MainActivity.this)
+                        .setTitle("فحص عميل معلق")
+                        .setSubtitle("حط صباعك على البصمة عشان تفتح البرنامج")
+                        .setNegativeButton("دخول بالباسورد", getMainExecutor(), (d, w) -> bioCb(id, "pw"))
+                        .build();
+                    bp.authenticate(new CancellationSignal(), getMainExecutor(), new android.hardware.biometrics.BiometricPrompt.AuthenticationCallback() {
+                        @Override public void onAuthenticationSucceeded(android.hardware.biometrics.BiometricPrompt.AuthenticationResult r) { bioCb(id, "ok"); }
+                        @Override public void onAuthenticationError(int code, CharSequence msg) { bioCb(id, "err:" + msg); }
+                    });
+                } catch (Throwable t) { bioCb(id, "err:" + t.getMessage()); }
+            });
+        }
         @JavascriptInterface public void lockSet(boolean open) { Lock.set(open); }
         @JavascriptInterface public void lockLogout() { Lock.logout(); }
 
@@ -216,6 +254,21 @@ public class MainActivity extends Activity {
         if (web.canGoBack()) web.goBack(); else moveTaskToBack(true);
     }
 
+    private long pausedAt = 0;
+    private void bioCb(String id, String r) {
+        final String js = "window.__cb(" + JSONObject.quote(id) + "," + JSONObject.quote(r) + ")";
+        runOnUiThread(() -> web.evaluateJavascript(js, null));
+    }
+
     @Override
-    protected void onPause() { super.onPause(); web.resumeTimers(); } // العدّاد يكمّل في الخلفية
+    protected void onPause() { super.onPause(); pausedAt = System.currentTimeMillis(); web.resumeTimers(); } // العدّاد يكمّل في الخلفية
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // لو البرنامج فضل في الخلفية أكتر من دقيقة، يطلب البصمة تاني
+        if (pausedAt > 0 && System.currentTimeMillis() - pausedAt > 60000 && web != null)
+            web.evaluateJavascript("window.bioRelock&&window.bioRelock()", null);
+        pausedAt = 0;
+    }
 }
