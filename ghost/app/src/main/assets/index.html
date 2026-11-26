@@ -770,13 +770,19 @@ async function bioRequire(){$('bioMsg').textContent='حط صباعك على ال
 function bioToPw(){BIO_DONE=false;$('bioBox').classList.add('hide');LK.logout().then(()=>showLock('locked'))}
 function bioShow(){$('app').classList.add('hide');$('lockBox').classList.add('hide');$('updGate').classList.add('hide');$('bioBox').classList.remove('hide');bioRequire()}
 window.bioRelock=function(){if(bioEnabled()&&BIO_DONE&&$('bioBox').classList.contains('hide')&&!$('app').classList.contains('hide')){BIO_DONE=false;bioShow()}};
-async function bioInitUI(){if(!NATIVE)return;let st='old';try{st=Android.bioState()}catch(e){}
-  const row=$('bioRow'),note=$('bioNote');if(st==='nohw'||st==='old'){row.classList.add('hide');return}
-  row.classList.remove('hide');$('bioChk').checked=bioEnabled();
-  note.textContent=st==='none'?'⚠️ مفيش بصمة متسجلة على الموبايل. سجّل بصمة من إعدادات الموبايل الأول.':''}
-async function bioToggle(on){if(on){let st='old';try{st=Android.bioState()}catch(e){}
+function bioSt(){let st='old';try{st=Android.bioState()}catch(e){st='na'}return st}
+async function bioInitUI(){if(!NATIVE){$('bioRow').classList.add('hide');return}
+  const row=$('bioRow'),note=$('bioNote'),chk=$('bioChk');row.classList.remove('hide');const st=bioSt();
+  chk.checked=bioEnabled()&&(st==='ok');chk.disabled=(st!=='ok'&&st!=='none');
+  note.textContent = st==='ok' ? '' :
+    st==='none' ? '⚠️ مفيش بصمة متسجلة على الموبايل. سجّل بصمة من إعدادات الموبايل الأول وارجع فعّلها.' :
+    st==='nohw' ? '⚠️ الموبايل ده مفيهوش حساس بصمة.' :
+    '⚠️ حدّث البرنامج لآخر نسخة (نزّل الـ APK الجديد) عشان البصمة تشتغل.';}
+async function bioToggle(on){if(on){const st=bioSt();
     if(st==='none'){$('bioChk').checked=false;return toast('سجّل بصمة من إعدادات الموبايل الأول')}
-    const r=await bioCall();if(r!=='ok'){$('bioChk').checked=false;return toast('البصمة اتلغت')}
+    if(st==='nohw'){$('bioChk').checked=false;return toast('الموبايل مفيهوش حساس بصمة')}
+    if(st!=='ok'){$('bioChk').checked=false;return toast('حدّث البرنامج لآخر نسخة عشان البصمة تشتغل')}
+    const r=await bioCall();if(r!=='ok'){$('bioChk').checked=false;return toast(r&&r.indexOf&&r.indexOf('err:')===0?r.slice(4):'البصمة اتلغت')}
     try{localStorage.setItem('bio','1')}catch(e){}BIO_DONE=true;toast('✅ البرنامج هيتقفل بالبصمة')}
   else{try{localStorage.setItem('bio','0')}catch(e){}toast('اتلغى قفل البصمة')}}
 async function init(){
