@@ -262,9 +262,14 @@ async function api(p,b){
 }
 // ---------- التحديث الإجباري: البرنامج مايشتغلش غير بآخر نسخة ----------
 function showGate(title,msg){['app','lockBox'].forEach(i=>$(i).classList.add('hide'));$('updGate').classList.remove('hide');$('ugTitle').textContent=title;$('ugMsg').textContent=msg;$('ugBtn').classList.add('hide');$('ugRetry').classList.add('hide')}
-async function updGate(){let v;
-  try{v=NATIVE?await api('upd_check'):await rawApi('upd_check')}catch(e){return true}
-  if(!v||v.error||v.latest)return true;                       // مفيش نت أو عنده آخر نسخة
+function showChecking(){['app','lockBox','bioBox'].forEach(i=>$(i)&&$(i).classList.add('hide'));
+  const g=$('updGate');g.classList.remove('hide');$('ugTitle').textContent='🔎 براجع التحديث';
+  $('ugMsg').innerHTML='<span class="spin"></span> ثانية واحدة...';$('ugProg').innerHTML='';$('ugBtn').classList.add('hide');$('ugRetry').classList.add('hide')}
+function hideUpd(){$('updGate').classList.add('hide')}
+async function updGate(silent){if(!silent)showChecking();let v;
+  try{v=await Promise.race([NATIVE?api('upd_check'):rawApi('upd_check'),new Promise((_,rej)=>setTimeout(()=>rej('to'),10000))]);}
+  catch(e){if(!silent){$('ugTitle').textContent='النت ضعيف';$('ugMsg').textContent='مقدرتش أراجع التحديث. البرنامج هيفتح عادي، أو دوس إعادة المحاولة.';$('ugRetry').classList.remove('hide');}return true}
+  if(!v||v.error||v.latest){if(!silent)hideUpd();return true}   // مفيش نت أو عنده آخر نسخة
   if(v.updated){showGate('بيتحدّث للإصدار '+v.name,'ثواني والبرنامج هيفتح بالنسخة الجديدة...');return false}
   if(v.apk){showGate('لازم تحدّث البرنامج','فيه إصدار جديد '+v.name+(v.notes?' ('+v.notes+')':'')+'، والبرنامج مش هيشتغل غير بعد التحديث. دوس «نزّل التحديث» وبعدين «تثبيت».');
     const b=$('ugBtn');b.classList.remove('hide');b.onclick=()=>Android.openLink(v.url);$('ugRetry').classList.remove('hide');return false}
@@ -276,7 +281,7 @@ async function pcAutoUpdate(){const pr=$('ugProg');pr.innerHTML='<div class="pro
   if(r.error){$('ugMsg').textContent='التحديث فشل: '+r.error;pr.innerHTML='';$('ugRetry').classList.remove('hide');return}
   $('ugT').textContent='✅ اتنزل، البرنامج بيعيد تشغيل نفسه...';
   const wait=async()=>{try{const v=await fetch('/api/version',{cache:'no-store'}).then(x=>x.json());if(v.name)return location.reload()}catch(e){}setTimeout(wait,1500)};setTimeout(wait,4000)}
-setInterval(async()=>{if(!busyNow()&&!(await updGate()))return},30*60e3);
+setInterval(async()=>{if(!busyNow()&&!(await updGate(true)))return},30*60e3);
 
 // ---------- القفل: اسم المستخدم ثابت M saeed ----------
 async function rawApi(p,b){const r=await fetch('/api/'+p,{method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});return r.json().catch(()=>({error:'البرنامج مش بيرد'}))}
@@ -776,6 +781,7 @@ async function bioToggle(on){if(on){let st='old';try{st=Android.bioState()}catch
   else{try{localStorage.setItem('bio','0')}catch(e){}toast('اتلغى قفل البصمة')}}
 async function init(){
   if(!(await updGate()))return;
+  hideUpd();
   let st='open';try{st=await LK.state()}catch(e){}
   if(st!=='open'){showLock(st);return}
   if(bioEnabled()&&!BIO_DONE){try{await loadCfg()}catch(e){}usersRender();themeUI();bioInitUI();bioShow();return}
